@@ -45,11 +45,13 @@ class _ShellState extends State<Shell> {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
+    // Nothing is shown behind the lock screen.
+    if (app.locked) return const Scaffold(body: SizedBox.expand());
     final dests = _dests(app);
     if (_index >= dests.length) _index = 0;
     final body = KeyedSubtree(key: ValueKey(dests[_index].label), child: dests[_index].builder());
 
-    if (isWide(context)) {
+    if (isWide(context) && dests.length >= 2) {
       return Scaffold(
         body: Row(children: [
           NavigationRail(
@@ -70,6 +72,7 @@ class _ShellState extends State<Shell> {
         ]),
       );
     }
+    if (dests.length < 2) return Scaffold(body: body);
     return Scaffold(
       body: body,
       bottomNavigationBar: NavigationBar(

@@ -13,7 +13,8 @@ Every push to `main` builds a new APK.
 
 ## 2. Build locally
 
-Requirements: Flutter 3.24.x (stable), Android Studio or the Android SDK, Java 17. For iOS: a Mac with Xcode 15+ and CocoaPods.
+Requirements: Flutter 3.24.x (stable), Android Studio or the Android SDK, Java 17. For iOS: a Mac with Xcode 15.3+ and CocoaPods. Minimum iOS version is 15.5 (required by the barcode scanner).
+Minimum Android version is 6.0 (API 23).
 
 ```bash
 flutter pub get

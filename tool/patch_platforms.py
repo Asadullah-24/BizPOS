@@ -112,7 +112,7 @@ def info_plist(s: str) -> str:
     return s
 
 
-PODFILE = """platform :ios, '13.0'
+PODFILE = """platform :ios, '15.5'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -154,7 +154,7 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.5'
       config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
         '$(inherited)',
         'PERMISSION_CAMERA=1',
@@ -176,8 +176,11 @@ def main():
     ios = ROOT / "ios"
     if ios.exists():
         patch(ios / "Runner" / "Info.plist", info_plist)
+        # mobile_scanner 6 (MLKit 7) needs iOS 15.5.
+        patch(ios / "Runner.xcodeproj" / "project.pbxproj",
+              lambda s: re.sub(r"IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;", "IPHONEOS_DEPLOYMENT_TARGET = 15.5;", s))
         podfile = ios / "Podfile"
-        if not podfile.exists() or "platform :ios, '13.0'" not in podfile.read_text(encoding="utf-8"):
+        if not podfile.exists() or "platform :ios, '15.5'" not in podfile.read_text(encoding="utf-8"):
             podfile.write_text(PODFILE, encoding="utf-8")
             print("wrote ios/Podfile")
     for w in warnings:

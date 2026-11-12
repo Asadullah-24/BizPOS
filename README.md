@@ -69,7 +69,12 @@ flutter run                 # on a connected phone
 flutter build apk --release # Android APK
 ```
 
-Every push to `main` builds a release APK in GitHub Actions. Download it from the run's **Artifacts** section.
+Every push to `main` runs the tests and builds a release APK in GitHub Actions.
+Latest APK: <https://github.com/Asadullah-24/BizPOS/releases/latest/download/BizPOS.apk>
+
+Tests (`flutter test`) cover cart maths, every money and stock flow against a real SQLite database
+(sale, refund, exchange, credit, cancel, purchase, adjustment, variants, expense, backup merge and restore),
+and a smoke test that renders every screen on phone and tablet sizes and completes a sale.
 
 ## Tech
 

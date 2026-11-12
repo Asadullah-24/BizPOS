@@ -2,11 +2,11 @@
 
 ## 1. Get the Android APK (no computer needed)
 
-1. Open the repository on GitHub, go to **Actions**, open the latest green **Android build** run.
-2. Under **Artifacts**, download `BizPOS-apk-<number>`. It is a zip with the APK inside.
-3. On the phone, open the APK and allow "Install unknown apps" when asked.
+1. On the phone open <https://github.com/Asadullah-24/BizPOS/releases/latest/download/BizPOS.apk>.
+2. Open the downloaded file and allow "Install unknown apps" when asked.
 
-Every push to `main` builds a new APK.
+Every push to `main` runs the tests, builds a new APK and replaces the file at that link. Older builds stay in
+**Actions** > **Android build** > run > **Artifacts**.
 
 > Without a release keystore (step 3) each build is signed with a temporary key, so Android may refuse to
 > install a newer build over an older one. Uninstall first, or set up the keystore once.

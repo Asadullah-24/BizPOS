@@ -89,6 +89,20 @@ jobs:
           name: BizPOS-apk-${{ github.run_number }}
           path: BizPOS-${{ github.run_number }}.apk
 
+      # Direct phone-friendly link: https://github.com/<owner>/<repo>/releases/latest/download/BizPOS.apk
+      - name: Publish APK to the latest release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp BizPOS-${{ github.run_number }}.apk BizPOS.apk
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest BizPOS.apk \
+            --target "${{ github.sha }}" \
+            --title "BizPOS build ${{ github.run_number }}" \
+            --notes "Automatic Android build from commit ${{ github.sha }}. Install BizPOS.apk on your phone." \
+            --latest
+
       - name: Commit generated platform folders
         if: github.event_name == 'push'
         run: |

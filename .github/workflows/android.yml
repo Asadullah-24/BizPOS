@@ -54,6 +54,7 @@ jobs:
 
       - name: Unit tests
         run: |
+          sudo apt-get install -y -qq libsqlite3-dev > /dev/null
           set -o pipefail
           flutter test 2>&1 | tee -a ci.log
 

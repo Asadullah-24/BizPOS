@@ -44,11 +44,24 @@ class DriveService extends ChangeNotifier {
         await _gsi.signInSilently();
       } catch (_) {}
     }
-    _sub ??= Connectivity().onConnectivityChanged.listen((results) {
-      if (results.any((r) => r != ConnectivityResult.none)) autoBackup();
-    });
+    try {
+      _sub ??= Connectivity().onConnectivityChanged.listen(
+        (results) {
+          if (results.any((r) => r != ConnectivityResult.none)) autoBackup();
+        },
+        onError: (Object _) {},
+      );
+    } catch (_) {}
     _timer ??= Timer.periodic(const Duration(minutes: 15), (_) => autoBackup());
     unawaited(autoBackup());
+  }
+
+  /// Stops automatic backup (used when the app is torn down, and in tests).
+  void stop() {
+    _timer?.cancel();
+    _timer = null;
+    _sub?.cancel();
+    _sub = null;
   }
 
   Future<bool> signIn() async {
@@ -101,9 +114,9 @@ class DriveService extends ChangeNotifier {
 
   Future<void> autoBackup() async {
     if (!enabled || busy || !hasPendingChanges) return;
-    final results = await Connectivity().checkConnectivity();
-    if (results.every((r) => r == ConnectivityResult.none)) return;
     try {
+      final results = await Connectivity().checkConnectivity();
+      if (results.every((r) => r == ConnectivityResult.none)) return;
       await backupNow();
     } catch (_) {
       // Retried on the next trigger.

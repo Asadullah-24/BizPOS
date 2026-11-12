@@ -68,7 +68,8 @@ class Db {
   Db._();
   static final Db instance = Db._();
 
-  static const _fileName = 'bizpos.db';
+  /// Database file name. Tests point this at their own file.
+  static String fileName = 'bizpos.db';
 
   Database? _db;
   late String deviceId;
@@ -92,7 +93,7 @@ class Db {
     await _open();
   }
 
-  Future<String> path() async => p.join(await getDatabasesPath(), _fileName);
+  Future<String> path() async => p.join(await getDatabasesPath(), fileName);
 
   Future<void> _open() async {
     _db = await openDatabase(

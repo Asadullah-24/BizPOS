@@ -98,7 +98,8 @@ void main() {
 
   testWidgets('phone: every screen renders and a sale completes', (t) async {
     setSize(t, const Size(412, 915));
-    await AppState.instance.login((await t.runAsync(() => AuthService.login('1234')))!);
+    final owner = await t.runAsync<Employee?>(() => AuthService.login('1234'));
+    await AppState.instance.login(owner!);
     await t.pumpWidget(app());
     await settle(t);
     expect(find.text('Smoke Shop'), findsWidgets);

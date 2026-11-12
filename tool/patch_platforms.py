@@ -27,7 +27,13 @@ def patch(path: Path, fn):
 # ---------------------------------------------------------------- Android
 def settings_gradle(s: str) -> str:
     # mobile_scanner 6 ships Kotlin 2.1 stdlib, so the Kotlin Gradle plugin must be 2.1+.
-    return re.sub(r'(id\s+"org\.jetbrains\.kotlin\.android"\s+version\s+")[^"]+(")', r"\g<1>2.1.0\2", s)
+    s = re.sub(r'(id\s+"org\.jetbrains\.kotlin\.android"\s+version\s+")[^"]+(")', r"\g<1>2.1.0\2", s)
+    # CameraX 1.5 (used by mobile_scanner) needs Android Gradle plugin 8.6+.
+    return re.sub(r'(id\s+"com\.android\.application"\s+version\s+")[^"]+(")', r"\g<1>8.7.3\2", s)
+
+
+def gradle_wrapper(s: str) -> str:
+    return re.sub(r"gradle-[0-9.]+-(all|bin)\.zip", "gradle-8.10.2-all.zip", s)
 
 
 def app_gradle(s: str) -> str:
@@ -171,6 +177,7 @@ def main():
     android = ROOT / "android"
     if android.exists():
         patch(android / "settings.gradle", settings_gradle)
+        patch(android / "gradle" / "wrapper" / "gradle-wrapper.properties", gradle_wrapper)
         patch(android / "app" / "build.gradle", app_gradle)
         patch(android / "app" / "src" / "main" / "AndroidManifest.xml", manifest)
     ios = ROOT / "ios"

@@ -31,6 +31,7 @@ def settings_gradle(s: str) -> str:
 
 
 def app_gradle(s: str) -> str:
+    s = re.sub(r"compileSdk\s*=\s*flutter\.compileSdkVersion", "compileSdk = 35", s)
     s = re.sub(r"minSdk\s*=\s*flutter\.minSdkVersion", "minSdk = 23", s)
     s = re.sub(r"minSdkVersion\s+flutter\.minSdkVersion", "minSdkVersion 23", s)
     if "keystoreProperties" not in s:

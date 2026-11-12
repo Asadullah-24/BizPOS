@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../core/app_state.dart';
 import '../../core/business_templates.dart';
 import '../../core/i18n.dart';
+import '../../services/auth_service.dart';
 import '../../services/backup_service.dart';
 import '../../services/drive_service.dart';
 import '../../services/setup_service.dart';
@@ -78,6 +79,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         pin: pin,
         language: _lang,
       );
+      // Sign the owner in straight away.
+      final owner = await AuthService.login(pin);
+      if (owner != null) {
+        await AppState.instance.login(owner);
+        DriveService.instance.start();
+      }
     });
     if (mounted) setState(() => _busy = false);
   }

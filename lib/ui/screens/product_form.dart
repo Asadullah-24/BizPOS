@@ -234,7 +234,7 @@ class _ProductFormState extends State<ProductForm> {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
     final units = {...?app.businessType?.units, if (_unit.text.isNotEmpty) _unit.text}.toList();
     final inv = app.hasModule(Mod.inventory);
-    final gap = const SizedBox(height: 12);
+    const gap = SizedBox(height: 12);
     return Scaffold(
       appBar: AppBar(
         title: Text(tr(_isNew ? 'Add product' : 'Edit product')),

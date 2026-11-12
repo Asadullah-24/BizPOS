@@ -1,8 +1,18 @@
 name: iOS build (unsigned)
 
-# Manual only: macOS runners are slower and use more Actions minutes.
+# Checks that the iOS project compiles. It cannot sign: that needs your Apple certificate.
+# macOS minutes are free for public repositories; for a private repo keep only workflow_dispatch.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -27,7 +37,9 @@ jobs:
       - run: flutter pub get
 
       - name: Build iOS (no code signing)
-        run: flutter build ios --release --no-codesign
+        run: |
+          set -o pipefail
+          flutter build ios --release --no-codesign 2>&1 | tee ci-ios.log
 
       - name: Package Runner.app
         run: |
@@ -38,3 +50,16 @@ jobs:
         with:
           name: BizPOS-ios-unsigned-${{ github.run_number }}
           path: BizPOS-ios-unsigned.zip
+
+      - name: Publish CI log
+        if: always()
+        run: |
+          mkdir -p /tmp/cilog
+          tail -c 200000 ci-ios.log > /tmp/cilog/latest.log 2>/dev/null || echo "no log" > /tmp/cilog/latest.log
+          echo "run=${{ github.run_number }} sha=${{ github.sha }} status=${{ job.status }}" > /tmp/cilog/status.txt
+          cd /tmp/cilog
+          git init -q
+          git checkout -q -b ci-logs-ios
+          git add .
+          git -c user.name=ci -c user.email=ci@local commit -qm "iOS CI log for run ${{ github.run_number }}"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ci-logs-ios

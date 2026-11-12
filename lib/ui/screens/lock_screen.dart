@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_state.dart';
+import '../../core/db.dart';
 import '../../core/i18n.dart';
+import '../../models/models.dart';
+import '../../services/activity_log.dart';
 import '../../services/auth_service.dart';
 import '../../services/drive_service.dart';
 
@@ -17,6 +20,10 @@ class _LockScreenState extends State<LockScreen> {
   String _pin = '';
   String? _error;
   bool _busy = false;
+
+  /// login | new | confirm (owner PIN reset after Google account check)
+  String _mode = 'login';
+  String _newPin = '';
 
   @override
   void initState() {
@@ -37,8 +44,52 @@ class _LockScreenState extends State<LockScreen> {
     setState(() => _pin = _pin.substring(0, _pin.length - 1));
   }
 
+  Future<void> _forgot() async {
+    setState(() => _busy = true);
+    final ok = await DriveService.instance.verifyBackupAccount();
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _pin = '';
+      if (ok) {
+        _mode = 'new';
+        _error = null;
+      } else {
+        _error = tr('That is not the Google account used for backup.');
+      }
+    });
+  }
+
+  Future<void> _resetStep() async {
+    if (_mode == 'new') {
+      setState(() {
+        _newPin = _pin;
+        _pin = '';
+        _mode = 'confirm';
+      });
+      return;
+    }
+    if (_pin != _newPin) {
+      setState(() {
+        _pin = '';
+        _mode = 'new';
+        _error = tr('PINs do not match.');
+      });
+      return;
+    }
+    setState(() => _busy = true);
+    final r = await Db.instance.s.one('SELECT * FROM employees WHERE is_owner = 1 AND deleted_at IS NULL LIMIT 1');
+    if (r == null || !mounted) return;
+    final owner = Employee.fromRow(r);
+    await Db.instance.s.update('employees', owner.id, AuthService.pinColumns(_pin));
+    await AppState.instance.login(owner);
+    await ActivityLog.add('Owner PIN reset with Google account', entity: 'employee', entityId: owner.id);
+    DriveService.instance.start();
+  }
+
   Future<void> _submit() async {
     if (_pin.length < 4 || _busy) return;
+    if (_mode != 'login') return _resetStep();
     setState(() => _busy = true);
     final e = await AuthService.login(_pin);
     if (!mounted) return;
@@ -86,7 +137,10 @@ class _LockScreenState extends State<LockScreen> {
               const SizedBox(height: 12),
               Text(app.businessName, style: Theme.of(context).textTheme.headlineSmall, textAlign: TextAlign.center),
               const SizedBox(height: 4),
-              Text(tr('Enter PIN'), style: Theme.of(context).textTheme.bodyLarge),
+              Text(
+                tr(_mode == 'new' ? 'Choose a new owner PIN' : (_mode == 'confirm' ? 'Confirm the new PIN' : 'Enter PIN')),
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
               const SizedBox(height: 20),
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -129,6 +183,11 @@ class _LockScreenState extends State<LockScreen> {
                 style: Theme.of(context).textTheme.bodySmall,
                 textAlign: TextAlign.center,
               ),
+              if (_mode == 'login' && DriveService.instance.enabled)
+                TextButton(
+                  onPressed: _busy ? null : _forgot,
+                  child: Text(tr('Owner forgot PIN? Verify with Google')),
+                ),
             ]),
           ),
         ),

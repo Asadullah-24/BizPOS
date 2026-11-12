@@ -111,7 +111,7 @@ class _BizPosAppState extends State<BizPosApp> with WidgetsBindingObserver {
       home: app.onboarded ? const Shell() : const OnboardingScreen(),
       // The lock screen sits above every route, so locking never loses the
       // screen underneath and nothing behind it can be reached.
-      builder: (context, child) => Stack(children: [
+      builder: (context, child) => Stack(fit: StackFit.expand, children: [
         if (child != null) child,
         if (locked) const Positioned.fill(child: LockScreen()),
       ]),

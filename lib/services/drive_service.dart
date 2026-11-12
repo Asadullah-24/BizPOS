@@ -67,6 +67,19 @@ class DriveService extends ChangeNotifier {
     }
   }
 
+  /// PIN recovery: true when the user signs in with the same Google account
+  /// that holds this business's backup.
+  Future<bool> verifyBackupAccount() async {
+    final expected = email;
+    if (!enabled || expected == null) return false;
+    try {
+      final acc = await _gsi.signIn();
+      return acc != null && acc.email.toLowerCase() == expected.toLowerCase();
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> signOut() async {
     try {
       await _gsi.signOut();

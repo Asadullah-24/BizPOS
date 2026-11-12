@@ -89,7 +89,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                   ),
                   const SizedBox(height: 24),
                   FilledButton.tonalIcon(
-                    onPressed: () => Navigator.pop(context, true),
+                    onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
                     icon: const Icon(Icons.add_shopping_cart),
                     label: Text(tr('New sale')),
                   ),

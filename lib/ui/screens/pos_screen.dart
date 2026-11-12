@@ -259,16 +259,15 @@ class _PosScreenState extends State<PosScreen> {
       MaterialPageRoute(
         builder: (_) => Scaffold(
           appBar: AppBar(title: Text(tr('Cart'))),
-          body: CartPanel(onCheckout: () => _checkout(context, closeCart: true)),
+          body: CartPanel(onCheckout: () => _checkout(context)),
         ),
       ),
     );
   }
 
-  Future<void> _checkout(BuildContext context, {bool closeCart = false}) async {
+  Future<void> _checkout(BuildContext context) async {
     if (pos.cart.isEmpty) return;
-    final done = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const CheckoutScreen()));
-    if (done == true && closeCart && context.mounted) Navigator.maybePop(context);
+    await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const CheckoutScreen()));
   }
 
   Widget _catalogue(AppState app) {

@@ -26,8 +26,8 @@ def patch(path: Path, fn):
 
 # ---------------------------------------------------------------- Android
 def settings_gradle(s: str) -> str:
-    # Newer plugins are compiled with Kotlin 1.9+.
-    return re.sub(r'(id\s+"org\.jetbrains\.kotlin\.android"\s+version\s+")[^"]+(")', r"\g<1>1.9.24\2", s)
+    # mobile_scanner 6 ships Kotlin 2.1 stdlib, so the Kotlin Gradle plugin must be 2.1+.
+    return re.sub(r'(id\s+"org\.jetbrains\.kotlin\.android"\s+version\s+")[^"]+(")', r"\g<1>2.1.0\2", s)
 
 
 def app_gradle(s: str) -> str:

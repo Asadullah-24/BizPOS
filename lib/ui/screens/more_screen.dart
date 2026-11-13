@@ -79,7 +79,7 @@ class MoreScreen extends StatelessWidget {
       _Item('Plan & upgrades', Icons.workspace_premium_rounded, () => const PlanScreen(), color: Tw.amber500),
       _Item('Settings', Icons.settings_rounded, () => const SettingsScreen(), color: Tw.slate400),
     ];
-    final cols = (MediaQuery.sizeOf(context).width / 120).floor().clamp(3, 7).toInt();
+    final cols = (MediaQuery.sizeOf(context).width / 100).floor().clamp(4, 8).toInt();
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final access = Access.instance;
@@ -102,8 +102,8 @@ class MoreScreen extends StatelessWidget {
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               Stack(clipBehavior: Clip.none, children: [
                 Container(
-                  width: 46,
-                  height: 46,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
@@ -141,7 +141,9 @@ class MoreScreen extends StatelessWidget {
     final name = app.user?.name ?? '?';
     return Scaffold(
       appBar: AppBar(title: Text(tr('More'))),
-      body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -187,11 +189,12 @@ class MoreScreen extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               mainAxisSpacing: 10,
               crossAxisSpacing: 10,
-              childAspectRatio: 0.92,
+              childAspectRatio: 0.82,
               children: [for (final it in items.where((i) => i.group == g)) tile(it)],
             ),
           ],
-      ]),
+        ]),
+      ),
     );
   }
 }

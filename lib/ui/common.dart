@@ -334,15 +334,33 @@ class ProductThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    const palettes = [
+      [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+      [Color(0xFF0EA5E9), Color(0xFF6366F1)],
+      [Color(0xFF10B981), Color(0xFF0EA5E9)],
+      [Color(0xFFF59E0B), Color(0xFFF43F5E)],
+      [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+      [Color(0xFF14B8A6), Color(0xFF22C55E)],
+      [Color(0xFFF97316), Color(0xFFEAB308)],
+    ];
+    final hash = name.codeUnits.fold<int>(0, (a, c) => (a * 31 + c) & 0x7fffffff);
+    final colors = palettes[hash % palettes.length];
+    final words = name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    final initials = words.isEmpty
+        ? '?'
+        : (words.length == 1 ? words.first.characters.first : words[0].characters.first + words[1].characters.first).toUpperCase();
+    final radius = size > 80 ? 16.0 : 10.0;
     final fallback = Container(
       width: size,
       height: size,
       alignment: Alignment.center,
-      decoration: BoxDecoration(color: cs.primaryContainer, borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [colors[0].withOpacity(0.9), colors[1].withOpacity(0.75)]),
+        borderRadius: BorderRadius.circular(radius),
+      ),
       child: Text(
-        name.isEmpty ? '?' : name.characters.first.toUpperCase(),
-        style: TextStyle(color: cs.onPrimaryContainer, fontWeight: FontWeight.w700, fontSize: size / 2.6),
+        initials,
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: (size / 3).clamp(12, 44).toDouble(), letterSpacing: -0.5),
       ),
     );
     if (image == null || image!.isEmpty) return fallback;
@@ -352,7 +370,7 @@ class ProductThumb extends StatelessWidget {
         final f = snap.data;
         if (f == null) return fallback;
         return ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(radius),
           child: Image.file(f, width: size, height: size, fit: BoxFit.cover, cacheWidth: (size * 3).round()),
         );
       },

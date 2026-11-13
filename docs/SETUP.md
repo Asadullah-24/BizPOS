@@ -2,7 +2,8 @@
 
 ## 1. Get the Android APK (no computer needed)
 
-1. On the phone open <https://github.com/Asadullah-24/BizPOS/releases/latest/download/BizPOS.apk>.
+1. On the phone open <https://github.com/Asadullah-24/BizPOS/releases/latest/download/BizPOS.apk>
+   (about 30 MB; `BizPOS-armv7.apk` is for older 32-bit phones, `BizPOS.aab` is for Google Play).
 2. Open the downloaded file and allow "Install unknown apps" when asked.
 
 Every push to `main` runs the tests, builds a new APK and replaces the file at that link. Older builds stay in
@@ -58,10 +59,45 @@ and put `release.jks` in `android/app/`.
 
 Never commit the keystore or passwords. This repository is public.
 
-## 4. Super admin, activation and packages
+## 4. Accounts, free plan and the online super admin panel
 
-Only the super admin can activate a phone. A fresh install shows the **Activate this phone** screen with the
-phone's device code and QR. Nothing else opens until a valid code is applied.
+**Free to start.** Anyone can install BizPOS and sell straight away. With Firebase configured the first screen
+offers *Create free account*, *Sign in*, *Continue with Google* or *Use without an account (offline)*.
+Free shops get the core POS with banner ads. Paid features (reports, employees, logo, alerts, reminders, voice)
+come from a subscription, an offline code, or a rewarded ad that unlocks one feature for 24 hours.
+
+**Connect Firebase** (once):
+1. Create the project, enable Email/Password and Google sign-in, create Firestore (see the chat steps).
+2. Put the values from Project settings into `lib/core/firebase_config.dart` (Android, iOS, web client id).
+3. Firestore > Rules: paste `firebase/firestore.rules` and publish. Rules tests run in CI (`.github/workflows/rules.yml`).
+4. Sign up in the app with your own email (or Google), open *More > Account*, copy your **User ID**.
+5. Firestore > Start collection `admins` > Document ID = your User ID > field `role` (string) = `super`.
+   Reopen the app: *More > Super admin* appears.
+
+**Super admin panel** (any phone, anywhere, after signing in):
+* Overview: shops, paid, free, blocked, revenue this month, pending requests, plans expiring in 7 days.
+* Shops: search and filter; open a shop to activate or extend a package (days are added to any time left),
+  set free, block/unblock, see devices and payment history, WhatsApp the owner.
+* Packages: create, edit, hide or delete packages (name, price text, amount, days or lifetime, features, no ads).
+  *Create default packages* adds Starter, Pro monthly, Pro yearly and Lifetime Basic.
+* Requests: shops request a package from their Plan screen; approve (records the payment) or reject.
+* Settings: branding (footer and support phone for every shop), 2FA on/off for the panel, account password,
+  offline unlock codes, change the offline code password.
+
+**Security**
+* Shop owner forgets the account password: *Forgot password?* on the sign-in screen sends a reset email.
+* Owner forgets the PIN: lock screen > *Owner forgot PIN? Sign in again* > account password (or Google) > new PIN.
+* Phone lost or stolen: on another phone sign in > *Account > My devices > Remove*. When the lost phone goes
+  online it erases its BizPOS data and signs out. The PIN and optional 2FA protect it until then.
+* New phone: sign in, restore data from Google Drive, and the plan comes back automatically.
+* Only the super admin can change plans, features, expiry or block shops; this is enforced by Firestore rules,
+  not just the app. For the strongest protection sign in to the panel with a Google account that has
+  Google 2-Step Verification on, and also turn on the panel's own authenticator code.
+
+## 5. Offline unlock codes (shops without internet)
+
+For shops that never go online, the super admin can still give a signed code. The phone's device code and QR
+are on *More > Plan & upgrades*.
 
 **Sign in as super admin**: tap *Super admin* on the activation screen, the login screen or Settings, then enter the
 master password and the 6-digit code from your authenticator app (2FA).
@@ -97,7 +133,7 @@ Keep the old key in the list so existing shops keep working.
 **AdMob**: the app ships with Google's test ad ids. Before selling, put your AdMob App ID in
 `tool/patch_platforms.py` (Android and iOS) and your rewarded ad unit ids in `lib/services/ads_service.dart`.
 
-## 5. Google Drive backup
+## 6. Google Drive backup
 
 Drive backup is optional. Everything else works without it. Google sign-in only works after you register the app
 with Google:
@@ -138,7 +174,7 @@ cannot see the user's other Drive files.
 * Automatic: when the phone comes online, when the app is reopened, and every 15 minutes while open, if anything changed.
 * **Restore / sync** downloads every phone's file and merges. Use it on a new phone, or to combine two phones on one account.
 
-## 6. iOS
+## 7. iOS
 
 * The `ios/` folder is a normal Xcode project (`ios/Runner.xcworkspace`).
 * GitHub Actions has a manual **iOS build (unsigned)** workflow that checks the project compiles on macOS. It cannot produce an
@@ -148,7 +184,7 @@ cannot see the user's other Drive files.
 * Bluetooth printing on iOS only works with BLE printers; many cheap thermal printers are Bluetooth Classic and work on Android only.
   Network (Wi-Fi/LAN) ESC/POS printers and AirPrint work on both.
 
-## 7. Printers
+## 8. Printers
 
 * **Bluetooth (Android)**: pair the printer in phone settings, then Settings > Printer > Find.
 * **Network**: ESC/POS printers on port 9100, set the IP in Settings > Printer.
@@ -156,7 +192,7 @@ cannot see the user's other Drive files.
 * Thermal receipts print ASCII only (printer code page). Urdu text and symbols like ₨ are replaced with `?`.
   The PDF invoice uses the built-in Helvetica font; for Urdu in PDFs bundle a font such as Noto Nastaliq Urdu.
 
-## 8. Developer notes
+## 9. Developer notes
 
 ### Database migrations
 

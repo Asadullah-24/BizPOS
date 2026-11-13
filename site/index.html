@@ -26,10 +26,10 @@
   <header class="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200">
     <div class="max-w-6xl mx-auto px-4 h-16 flex items-center gap-3">
       <a href="./" class="flex items-center gap-2 shrink-0">
-        <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 grid place-items-center text-white shadow-md shadow-indigo-500/30">
+        <span id="brandMark" class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 grid place-items-center text-white shadow-md shadow-indigo-500/30 overflow-hidden">
           <svg viewBox="0 0 24 24" class="w-5 h-5" fill="currentColor"><path d="M4 7h16l-1.2 10.2A2 2 0 0 1 16.8 19H7.2a2 2 0 0 1-2-1.8L4 7Zm4-3h8v2H8V4Z"/></svg>
         </span>
-        <span class="font-extrabold text-lg tracking-tight">Biz<span class="text-indigo-600">POS</span></span>
+        <span id="brandName" class="font-extrabold text-lg tracking-tight hidden sm:inline">Biz<span class="text-indigo-600">POS</span></span>
       </a>
       <div class="flex-1 min-w-0">
         <input id="search" type="search" placeholder="Search products or shops"
@@ -99,11 +99,25 @@ const thumb = (item, cls = 'aspect-square') => item.thumb
 const store = (key, val) => { try { if (val === undefined) return JSON.parse(localStorage.getItem(key) || 'null'); localStorage.setItem(key, JSON.stringify(val)); } catch { return null; } };
 
 let settings = {};
+let brand = 'BizPOS';
 async function loadSettings() {
   try {
     const s = await getDoc(doc(db, 'settings/app'));
     settings = s.exists() ? s.data() : {};
   } catch { settings = {}; }
+  // Brand name and logo come from the super admin panel, so a rename needs no new website.
+  if (settings.brandName) {
+    brand = settings.brandName;
+    $('brandName').textContent = brand;
+  }
+  if (settings.brandLogo && String(settings.brandLogo).startsWith('data:image')) {
+    $('brandMark').innerHTML = `<img src="${esc(settings.brandLogo)}" alt="" class="w-full h-full object-cover">`;
+    $('brandMark').classList.remove('bg-gradient-to-br');
+    const icon = document.createElement('link');
+    icon.rel = 'icon';
+    icon.href = settings.brandLogo;
+    document.head.appendChild(icon);
+  }
   if (settings.footer) $('footer').textContent = settings.footer;
   if (settings.phone) {
     $('support').href = `https://wa.me/${waNumber(settings.phone)}`;
@@ -154,7 +168,7 @@ function productCard(item, cur, { storeName = '', href = '', deal = null, add = 
 // ------------------------------------------------------------------ home
 
 async function home() {
-  document.title = 'BizPOS Marketplace';
+  document.title = `${brand} Marketplace`;
   const [storesSnap, featuredSnap] = await Promise.all([
     getDocs(query(collection(db, 'storefronts'), where('published', '==', true), where('adminHidden', '==', false))),
     getDocs(collection(db, 'featured')).catch(() => ({ docs: [] })),
@@ -175,7 +189,7 @@ async function home() {
     main.innerHTML = `
       <section class="mt-6 rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-600 text-white p-6 sm:p-10 relative overflow-hidden fade-in">
         <div class="absolute -right-10 -top-10 w-48 h-48 rounded-full bg-white/10"></div>
-        <p class="text-sm font-semibold text-white/80">BizPOS Marketplace</p>
+        <p class="text-sm font-semibold text-white/80">${esc(brand)} Marketplace</p>
         <h1 class="mt-1 text-3xl sm:text-4xl font-extrabold tracking-tight max-w-xl">Order from shops near you</h1>
         <p class="mt-3 text-white/85 max-w-lg">Groceries, clothes, mobiles and more. Place your order online and the shop calls you to confirm.</p>
         <div class="mt-5 flex gap-3 text-sm">
@@ -247,7 +261,7 @@ async function storePage() {
   const s = await getDoc(doc(db, `storefronts/${shopId}`));
   if (!s.exists() || !visible(s.data())) return emptyPage('Shop not available', 'This shop is not taking online orders right now.');
   shop = { id: s.id, ...s.data() };
-  document.title = `${shop.name} · BizPOS`;
+  document.title = `${shop.name} · ${brand}`;
   const [itemsSnap, dealsSnap] = await Promise.all([
     getDocs(collection(db, `storefronts/${shopId}/items`)),
     getDocs(query(collection(db, 'featured'), where('shopId', '==', shopId))).catch(() => ({ docs: [] })),
@@ -383,7 +397,7 @@ async function placeOrder(e) {
     saveCart();
     updateCartButton();
     const wa = waNumber(shop.phone);
-    const text = encodeURIComponent(`Assalam o Alaikum! I placed order ${ref.id.slice(0, 6).toUpperCase()} on BizPOS:\n` +
+    const text = encodeURIComponent(`Assalam o Alaikum! I placed order ${ref.id.slice(0, 6).toUpperCase()} on ${brand}:\n` +
       order.items.map((i) => `${i.qty} x ${i.name}`).join('\n') + `\nTotal: ${money(order.currency, order.total)}\n${customer.name}, ${customer.phone}`);
     $('drawerBody').innerHTML = `
       <div class="text-center py-10 fade-in">

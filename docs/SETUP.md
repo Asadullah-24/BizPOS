@@ -219,3 +219,24 @@ RTL languages go in `I18n.rtl`.
 * Employees: the owner resets their PIN in Employees.
 * Owner: on the lock screen tap **Owner forgot PIN? Verify with Google** and sign in with the Google account used for Drive
   backup, then choose a new PIN. This option only appears when Drive backup is on, so turn it on early.
+
+## 10. Online store website and your own domain
+
+The website is one file, `site/index.html`. It reads everything (shops, products,
+brand name, logo) from Firestore, so renaming the brand or changing the logo is
+done in the app: Super admin > Website > Brand name / Website logo. No new
+website or app update is needed.
+
+Hosting, pick one:
+
+- **Free (GitHub Pages)**: repository Settings > Pages > Source: GitHub Actions.
+  The site is published at https://asadullah-24.github.io/BizPOS/ on every push
+  to `site/`.
+- **Your own domain on GitHub Pages**: Settings > Pages > Custom domain, enter
+  e.g. `shop.yourdomain.com`, and at your domain provider add a CNAME record
+  `shop` -> `asadullah-24.github.io`.
+- **Hostinger or any web host**: upload `site/index.html` to the folder of your
+  domain or subdomain (for example `public_html/shop`).
+
+Then set the address in Super admin > Website > Website address, so every shop's
+link and QR code use it.

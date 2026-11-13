@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/format.dart';
@@ -22,6 +23,8 @@ class StoreAdmin extends StatelessWidget {
       listenable: cloud,
       builder: (context, _) => ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 32), children: [
         _WebsiteCard(open: store.marketplaceOpen, defaultLimit: store.defaultLimit),
+        const SizedBox(height: 16),
+        const _BrandCard(),
         const SizedBox(height: 16),
         const _Featured(),
         const SizedBox(height: 16),
@@ -101,6 +104,91 @@ class _WebsiteCard extends StatelessWidget {
             ),
           ),
         ]),
+      ]),
+    );
+  }
+}
+
+/// Brand name, logo and website address, changeable any time without an update.
+class _BrandCard extends StatelessWidget {
+  const _BrandCard();
+
+  Future<void> _text(BuildContext context, String title, String current, String hint, Future<void> Function(String) save) async {
+    final c = TextEditingController(text: current);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr(title)),
+        content: TextField(controller: c, autofocus: true, decoration: InputDecoration(hintText: hint)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('Save'))),
+        ],
+      ),
+    );
+    if (ok == true && context.mounted) await guard(context, () => save(c.text.trim()), success: 'Saved');
+  }
+
+  Future<void> _logo(BuildContext context) async {
+    final x = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 1024);
+    if (x == null || !context.mounted) return;
+    await guard(context, () async {
+      final data = await StoreService.logoFromBytes(await x.readAsBytes());
+      if (data == null) throw StateError('That image could not be read.');
+      await StoreService.instance.saveMarketSettings(brandLogo: data);
+    }, success: 'Logo updated');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final store = StoreService.instance;
+    final custom = '${CloudService.instance.appSettings['websiteUrl'] ?? ''}'.trim();
+    final logo = store.brandLogo;
+    Widget icon(IconData i, Color c) => Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(color: c.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+          child: Icon(i, color: c, size: 20),
+        );
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(children: [
+        ListTile(
+          leading: icon(Icons.badge_rounded, Tw.indigo500),
+          title: Text(tr('Brand name on the website')),
+          subtitle: Text(store.brandName),
+          trailing: const Icon(Icons.edit_rounded),
+          onTap: () => _text(context, 'Brand name on the website', store.brandName, 'BizPOS',
+              (v) => StoreService.instance.saveMarketSettings(brandName: v)),
+        ),
+        const Divider(height: 1, indent: 64),
+        ListTile(
+          leading: logo.startsWith('data:image')
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.memory(UriData.parse(logo).contentAsBytes(), width: 36, height: 36, fit: BoxFit.cover),
+                )
+              : icon(Icons.image_rounded, Tw.fuchsia500),
+          title: Text(tr('Website logo')),
+          subtitle: Text(tr(logo.isEmpty ? 'Default BizPOS logo' : 'Your logo')),
+          trailing: logo.isEmpty
+              ? const Icon(Icons.upload_rounded)
+              : IconButton(
+                  tooltip: tr('Remove'),
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () => guard(context, () => StoreService.instance.saveMarketSettings(brandLogo: '')),
+                ),
+          onTap: () => _logo(context),
+        ),
+        const Divider(height: 1, indent: 64),
+        ListTile(
+          leading: icon(Icons.language_rounded, Tw.sky400),
+          title: Text(tr('Website address')),
+          subtitle: Text(custom.isEmpty ? '${StoreService.defaultWebBase} (${tr('free address')})' : StoreService.webBase),
+          trailing: const Icon(Icons.edit_rounded),
+          onTap: () => _text(context, 'Website address', custom, 'https://shop.yourdomain.com',
+              (v) => StoreService.instance.saveMarketSettings(websiteUrl: v)),
+        ),
       ]),
     );
   }

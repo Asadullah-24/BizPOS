@@ -28,9 +28,22 @@ class StoreService extends ChangeNotifier {
   StoreService._();
   static final StoreService instance = StoreService._();
 
-  /// Public website (GitHub Pages).
-  static const webBase = 'https://asadullah-24.github.io/BizPOS/';
+  /// Free website address used until the super admin sets their own domain.
+  static const defaultWebBase = 'https://asadullah-24.github.io/BizPOS/';
+
+  /// Website address (settings/app.websiteUrl), always ending with "/".
+  static String get webBase {
+    var u = '${CloudService.instance.appSettings['websiteUrl'] ?? ''}'.trim();
+    if (u.isEmpty) return defaultWebBase;
+    if (!u.startsWith('http')) u = 'https://$u';
+    return u.endsWith('/') ? u : '$u/';
+  }
+
   static String storeUrl(String shopId) => '$webBase?s=$shopId';
+
+  /// Brand shown on the website (settings/app.brandName / brandLogo).
+  String get brandName => '${_cloud.appSettings['brandName'] ?? ''}'.trim().isEmpty ? 'BizPOS' : '${_cloud.appSettings['brandName']}'.trim();
+  String get brandLogo => '${_cloud.appSettings['brandLogo'] ?? ''}';
 
   static const defaultOnlineLimit = 3;
 
@@ -279,10 +292,20 @@ class StoreService extends ChangeNotifier {
       .map((q) => q.docs.map((d) => {'id': d.id, ...d.data()}).toList()
         ..sort((a, b) => _ms(b['createdAt']).compareTo(_ms(a['createdAt']))));
 
-  Future<void> saveMarketSettings({bool? open, int? defaultLimit}) => _db.doc('settings/app').set({
+  Future<void> saveMarketSettings({bool? open, int? defaultLimit, String? websiteUrl, String? brandName, String? brandLogo}) =>
+      _db.doc('settings/app').set({
         if (open != null) 'marketplaceOpen': open,
         if (defaultLimit != null) 'onlineDefaultLimit': defaultLimit,
+        if (websiteUrl != null) 'websiteUrl': websiteUrl.trim(),
+        if (brandName != null) 'brandName': brandName.trim(),
+        if (brandLogo != null) 'brandLogo': brandLogo,
       }, SetOptions(merge: true));
+
+  /// Square logo (data URL) for the website, from a picked image file.
+  static Future<String?> logoFromBytes(Uint8List bytes) async {
+    final jpg = await compute(_logo, bytes);
+    return jpg == null ? null : 'data:image/png;base64,${base64Encode(jpg)}';
+  }
 
   /// Super admin: hide or show a store on the website.
   Future<void> setHidden(String shopId, bool hidden) => _db
@@ -343,6 +366,16 @@ class StoreService extends ChangeNotifier {
 }
 
 int _ms(Object? v) => v is Timestamp ? v.millisecondsSinceEpoch : (v is num ? v.toInt() : 0);
+
+/// Square 192px PNG logo (runs in an isolate).
+Uint8List? _logo(Uint8List bytes) {
+  final decoded = img.decodeImage(bytes);
+  if (decoded == null) return null;
+  final side = min(decoded.width, decoded.height);
+  final square = img.copyCrop(decoded,
+      x: (decoded.width - side) ~/ 2, y: (decoded.height - side) ~/ 2, width: side, height: side);
+  return Uint8List.fromList(img.encodePng(img.copyResize(square, width: 192, height: 192)));
+}
 
 /// Resizes a photo to 320px and encodes it as JPEG (runs in an isolate).
 Uint8List? _shrink(Uint8List bytes) {

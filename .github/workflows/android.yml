@@ -71,9 +71,20 @@ jobs:
             # Store and key passwords are the same unless KEY_PASSWORD is set.
             KEY_PASSWORD="${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
             KEY_ALIAS="${KEY_ALIAS:-bizpos}"
-            keytool -list -keystore android/app/release.jks -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null \
-              && echo "Release keystore verified." | tee -a ci.log \
-              || { echo "ERROR: release keystore or KEYSTORE_PASSWORD is wrong." | tee -a ci.log; exit 1; }
+            # Diagnostics only: sizes and hash prefixes, never the secret values.
+            {
+              echo "keystore bytes: $(wc -c < android/app/release.jks)"
+              echo "keystore sha256: $(sha256sum android/app/release.jks | cut -c1-16)"
+              echo "store password length: ${#KEYSTORE_PASSWORD}"
+              echo "alias length: ${#KEY_ALIAS}"
+            } | tee -a ci.log
+            if keytool -list -keystore android/app/release.jks -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" > keytool.out 2>&1; then
+              echo "Release keystore verified." | tee -a ci.log
+            else
+              grep -v -i "password" keytool.out | tail -5 | tee -a ci.log
+              echo "ERROR: release keystore or KEYSTORE_PASSWORD is wrong." | tee -a ci.log
+              exit 1
+            fi
             {
               echo "storeFile=release.jks"
               echo "storePassword=$KEYSTORE_PASSWORD"

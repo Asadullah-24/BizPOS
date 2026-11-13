@@ -10,6 +10,7 @@ import 'services/alert_service.dart';
 import 'services/cloud_service.dart';
 import 'ui/screens/auth/welcome_screen.dart';
 import 'services/drive_service.dart';
+import 'services/store_service.dart';
 import 'ui/screens/lock_screen.dart';
 import 'ui/screens/onboarding_screen.dart';
 import 'ui/screens/shell.dart';
@@ -254,6 +255,7 @@ class _BizPosAppState extends State<BizPosApp> with WidgetsBindingObserver {
       DriveService.instance.autoBackup();
       LicenseService.instance.load();
       if (!app.locked) AlertService.runChecks();
+      StoreService.instance.pushStats();
     }
   }
 

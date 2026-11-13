@@ -22,6 +22,7 @@ import 'parties_screen.dart';
 import 'purchases_screen.dart';
 import 'reports_screen.dart';
 import 'sales_screen.dart';
+import 'online_store_screen.dart';
 import 'plan_screen.dart';
 import 'reminders_screen.dart';
 import 'settings_screen.dart';
@@ -75,6 +76,10 @@ class MoreScreen extends StatelessWidget {
       if (app.can(Perm.backup)) _Item('Backup & restore', Icons.cloud_sync_rounded, () => const BackupScreen(), color: Tw.sky400),
       if (cloud.configured) _Item('Account', Icons.account_circle_rounded, () => const AccountScreen(), color: Tw.indigo500),
       if (cloud.isAdmin) _Item('Super admin', Icons.admin_panel_settings_rounded, () => const AdminGate(), color: Tw.fuchsia500),
+      if (cloud.configured)
+        _Item('Online store', Icons.public_rounded, () => const OnlineStoreScreen(), group: 'Online', color: Tw.cyan400),
+      if (cloud.configured)
+        _Item('Online orders', Icons.shopping_bag_rounded, () => const OrdersScreen(), group: 'Online', color: Tw.emerald500),
       _Item('Shop QR', Icons.qr_code_2_rounded, () => const StoreQrScreen(), color: Tw.slate400),
       _Item('Plan & upgrades', Icons.workspace_premium_rounded, () => const PlanScreen(), color: Tw.amber500),
       _Item('Settings', Icons.settings_rounded, () => const SettingsScreen(), color: Tw.slate400),
@@ -137,7 +142,7 @@ class MoreScreen extends StatelessWidget {
       );
     }
 
-    const groups = ['Stock', 'People', 'Money', 'Business'];
+    const groups = ['Online', 'Stock', 'People', 'Money', 'Business'];
     final name = app.user?.name ?? '?';
     return Scaffold(
       appBar: AppBar(title: Text(tr('More'))),

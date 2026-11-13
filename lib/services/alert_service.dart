@@ -31,6 +31,14 @@ class AlertService {
     _ready = true;
   }
 
+  /// Shows a phone notification (used for new online orders).
+  static Future<void> notify(int id, String title, String body) async {
+    try {
+      await _init();
+      await _show(id, title, body);
+    } catch (_) {}
+  }
+
   static Future<void> _show(int id, String title, String body) async {
     await _plugin.show(
       id,

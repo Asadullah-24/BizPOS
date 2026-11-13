@@ -18,7 +18,9 @@ import '../../services/report_service.dart';
 import '../../services/sales_service.dart';
 import '../charts.dart';
 import '../common.dart';
+import '../../services/store_service.dart';
 import '../tokens.dart';
+import 'online_store_screen.dart';
 import 'expenses_screen.dart';
 import 'inventory_screen.dart';
 import 'parties_screen.dart';
@@ -149,6 +151,27 @@ class DashboardScreen extends StatelessWidget {
           return RefreshIndicator(
             onRefresh: () async => Db.instance.refresh(),
             child: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
+              ListenableBuilder(
+                listenable: StoreService.instance,
+                builder: (context, _) {
+                  final n = StoreService.instance.newOrders;
+                  if (n == 0) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Material(
+                      color: Tw.emerald500.withOpacity(0.14),
+                      borderRadius: BorderRadius.circular(16),
+                      child: ListTile(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        leading: const Icon(Icons.shopping_bag_rounded, color: Tw.emerald500),
+                        title: Text('$n ${tr('new online orders')}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrdersScreen())),
+                      ),
+                    ),
+                  );
+                },
+              ),
               _TodayHero(today: d.today, seeProfit: seeProfit, showExpenses: app.hasModule(Mod.expenses)),
               const SizedBox(height: 16),
               _QuickActions(app: app),

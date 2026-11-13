@@ -114,10 +114,14 @@ class Package {
     this.sort = 0,
     this.description = '',
     this.maxProducts = 0,
+    this.onlineProducts = 3,
   });
 
   final String id;
   String name;
+
+  /// Products the shop may show on its online store; 0 means no limit.
+  int onlineProducts;
 
   /// Most products a shop on this package may have; 0 means no limit.
   int maxProducts;
@@ -148,10 +152,12 @@ class Package {
         sort: ((m['sort'] ?? 0) as num).toInt(),
         description: (m['description'] ?? '') as String,
         maxProducts: ((m['maxProducts'] ?? 0) as num).toInt(),
+        onlineProducts: ((m['onlineProducts'] ?? 3) as num).toInt(),
       );
 
   Map<String, dynamic> toMap() => {
         'maxProducts': maxProducts,
+        'onlineProducts': onlineProducts,
         'name': name,
         'price': price,
         'amount': amount,

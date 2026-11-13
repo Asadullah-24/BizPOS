@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>BizPOS Marketplace</title>
+  <meta name="description" content="Order from local shops on BizPOS.">
+  <meta name="theme-color" content="#4f46e5">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } };
+  </script>
+  <style>
+    body { -webkit-tap-highlight-color: transparent; }
+    .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { scrollbar-width: none; }
+    .fade-in { animation: fade .25s ease-out; }
+    @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased">
+  <!-- Header -->
+  <header class="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 h-16 flex items-center gap-3">
+      <a href="./" class="flex items-center gap-2 shrink-0">
+        <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 grid place-items-center text-white shadow-md shadow-indigo-500/30">
+          <svg viewBox="0 0 24 24" class="w-5 h-5" fill="currentColor"><path d="M4 7h16l-1.2 10.2A2 2 0 0 1 16.8 19H7.2a2 2 0 0 1-2-1.8L4 7Zm4-3h8v2H8V4Z"/></svg>
+        </span>
+        <span class="font-extrabold text-lg tracking-tight">Biz<span class="text-indigo-600">POS</span></span>
+      </a>
+      <div class="flex-1 min-w-0">
+        <input id="search" type="search" placeholder="Search products or shops"
+          class="w-full h-10 rounded-xl border border-slate-200 bg-slate-100 px-4 text-sm outline-none focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100">
+      </div>
+      <button id="cartBtn" class="hidden relative shrink-0 h-10 px-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">
+        Cart <span id="cartCount" class="ml-1 inline-grid place-items-center min-w-5 h-5 px-1 rounded-full bg-white text-indigo-700 text-xs">0</span>
+      </button>
+    </div>
+  </header>
+
+  <main id="app" class="max-w-6xl mx-auto px-4 pb-28">
+    <div class="py-24 text-center text-slate-500" id="loading">
+      <div class="w-10 h-10 mx-auto mb-4 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin"></div>
+      Loading…
+    </div>
+  </main>
+
+  <footer class="border-t border-slate-200 bg-white">
+    <div class="max-w-6xl mx-auto px-4 py-6 text-center text-sm text-slate-500">
+      <span id="footer">Powered by BizPOS</span> · <a id="support" class="text-indigo-600 font-medium" href="https://wa.me/923224699887">Support 0322-4699887</a>
+    </div>
+  </footer>
+
+  <!-- Cart drawer -->
+  <div id="drawer" class="fixed inset-0 z-40 hidden">
+    <div id="drawerBg" class="absolute inset-0 bg-slate-900/50"></div>
+    <aside class="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col fade-in">
+      <div class="h-16 px-5 flex items-center justify-between border-b border-slate-200">
+        <h2 class="font-bold text-lg">Your order</h2>
+        <button id="drawerClose" class="w-9 h-9 rounded-lg hover:bg-slate-100 text-xl">×</button>
+      </div>
+      <div id="drawerBody" class="flex-1 overflow-y-auto p-5"></div>
+    </aside>
+  </div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js';
+import { getFirestore, doc, getDoc, getDocs, collection, query, where, addDoc, serverTimestamp }
+  from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
+
+const app = initializeApp({
+  apiKey: 'AIzaSyBwC3mZE1eseWzjoUCkHV2e_Q3KAAYvvE8',
+  authDomain: 'bizpos-7e092.firebaseapp.com',
+  projectId: 'bizpos-7e092',
+  storageBucket: 'bizpos-7e092.firebasestorage.app',
+  messagingSenderId: '63118621975',
+  appId: '1:63118621975:web:172defd7f1978470a84b52',
+});
+const db = getFirestore(app);
+
+const $ = (id) => document.getElementById(id);
+const main = $('app');
+const params = new URLSearchParams(location.search);
+const shopId = params.get('s');
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = (cur, v) => `${esc(cur || 'Rs')} ${Number(v || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 })}`;
+const visible = (s) => s && s.published === true && s.adminHidden !== true && (!s.paidUntil || s.paidUntil > Date.now());
+const waNumber = (p) => { let d = String(p || '').replace(/\D/g, ''); if (d.startsWith('0')) d = '92' + d.slice(1); return d; };
+const initials = (n) => String(n || '?').split(/\s+/).filter((w) => /^\p{L}/u.test(w)).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
+const palette = ['from-indigo-500 to-violet-500', 'from-sky-500 to-indigo-500', 'from-emerald-500 to-sky-500', 'from-amber-500 to-rose-500', 'from-pink-500 to-violet-500', 'from-teal-500 to-green-500'];
+const tone = (n) => palette[[...String(n)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 0) % palette.length];
+const thumb = (item, cls = 'aspect-square') => item.thumb
+  ? `<img src="${esc(item.thumb)}" alt="" class="${cls} w-full object-cover" loading="lazy">`
+  : `<div class="${cls} w-full grid place-items-center bg-gradient-to-br ${tone(item.name)} text-white text-3xl font-extrabold">${esc(initials(item.name))}</div>`;
+
+const store = (key, val) => { try { if (val === undefined) return JSON.parse(localStorage.getItem(key) || 'null'); localStorage.setItem(key, JSON.stringify(val)); } catch { return null; } };
+
+let settings = {};
+async function loadSettings() {
+  try {
+    const s = await getDoc(doc(db, 'settings/app'));
+    settings = s.exists() ? s.data() : {};
+  } catch { settings = {}; }
+  if (settings.footer) $('footer').textContent = settings.footer;
+  if (settings.phone) {
+    $('support').href = `https://wa.me/${waNumber(settings.phone)}`;
+    $('support').textContent = `Support ${settings.phone}`;
+  }
+}
+
+function closedPage() {
+  main.innerHTML = `
+    <section class="py-24 text-center fade-in">
+      <div class="w-16 h-16 mx-auto mb-5 rounded-2xl bg-amber-100 text-amber-600 grid place-items-center text-3xl">🛠️</div>
+      <h1 class="text-2xl font-extrabold">We'll be back soon</h1>
+      <p class="mt-2 text-slate-500">The BizPOS marketplace is closed for a short while.</p>
+    </section>`;
+}
+
+function emptyPage(title, text) {
+  main.innerHTML = `
+    <section class="py-24 text-center fade-in">
+      <h1 class="text-2xl font-extrabold">${esc(title)}</h1>
+      <p class="mt-2 text-slate-500">${esc(text)}</p>
+      <a href="./" class="inline-block mt-6 px-5 h-11 leading-[44px] rounded-xl bg-indigo-600 text-white font-semibold">Browse shops</a>
+    </section>`;
+}
+
+function productCard(item, cur, { storeName = '', href = '', deal = null, add = false } = {}) {
+  const price = deal ?? item.price;
+  return `
+    <div class="group bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition fade-in">
+      <a ${href ? `href="${href}"` : ''} class="block relative">
+        ${thumb(item)}
+        ${deal != null ? `<span class="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-rose-500 text-white text-xs font-bold">DEAL</span>` : ''}
+        ${item.inStock === false ? `<span class="absolute inset-0 bg-white/70 grid place-items-center text-sm font-bold text-slate-600">Out of stock</span>` : ''}
+      </a>
+      <div class="p-3">
+        ${storeName ? `<div class="text-xs text-slate-500 truncate">${esc(storeName)}</div>` : ''}
+        <div class="font-semibold text-sm line-clamp-2 min-h-[2.5rem]">${esc(item.name)}</div>
+        <div class="mt-1 flex items-baseline gap-2">
+          <span class="font-extrabold text-indigo-600">${money(cur, price)}</span>
+          ${deal != null ? `<span class="text-xs text-slate-400 line-through">${money(cur, item.price)}</span>` : ''}
+        </div>
+        ${add ? `<button data-add="${esc(item.id)}" ${item.inStock === false ? 'disabled' : ''}
+            class="mt-3 w-full h-9 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:bg-slate-300">Add</button>` : ''}
+      </div>
+    </div>`;
+}
+
+// ------------------------------------------------------------------ home
+
+async function home() {
+  document.title = 'BizPOS Marketplace';
+  const [storesSnap, featuredSnap] = await Promise.all([
+    getDocs(query(collection(db, 'storefronts'), where('published', '==', true), where('adminHidden', '==', false))),
+    getDocs(collection(db, 'featured')).catch(() => ({ docs: [] })),
+  ]);
+  const stores = storesSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter(visible);
+  const live = new Set(stores.map((s) => s.id));
+  const featured = featuredSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((f) => live.has(f.shopId));
+  const hot = featured.filter((f) => f.kind === 'hot');
+  const deals = featured.filter((f) => f.kind === 'deal');
+
+  const render = (q = '') => {
+    const match = (t) => String(t || '').toLowerCase().includes(q);
+    const fStores = stores.filter((s) => !q || match(s.name) || match(s.city) || match(s.category));
+    const fHot = hot.filter((f) => !q || match(f.name) || match(f.storeName));
+    const fDeals = deals.filter((f) => !q || match(f.name) || match(f.storeName));
+    const card = (f, deal) => productCard({ id: f.itemId, name: f.name, price: f.price, thumb: f.thumb }, f.currency,
+      { storeName: f.storeName, href: `?s=${encodeURIComponent(f.shopId)}`, deal: deal ? f.dealPrice : null });
+    main.innerHTML = `
+      <section class="mt-6 rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-600 text-white p-6 sm:p-10 relative overflow-hidden fade-in">
+        <div class="absolute -right-10 -top-10 w-48 h-48 rounded-full bg-white/10"></div>
+        <p class="text-sm font-semibold text-white/80">BizPOS Marketplace</p>
+        <h1 class="mt-1 text-3xl sm:text-4xl font-extrabold tracking-tight max-w-xl">Order from shops near you</h1>
+        <p class="mt-3 text-white/85 max-w-lg">Groceries, clothes, mobiles and more. Place your order online and the shop calls you to confirm.</p>
+        <div class="mt-5 flex gap-3 text-sm">
+          <span class="px-3 py-1.5 rounded-full bg-white/15">${stores.length} shops</span>
+          <span class="px-3 py-1.5 rounded-full bg-white/15">No app needed</span>
+        </div>
+      </section>
+      ${fDeals.length ? `
+        <section class="mt-10">
+          <h2 class="text-xl font-extrabold">🔥 Deals</h2>
+          <div class="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">${fDeals.map((f) => card(f, true)).join('')}</div>
+        </section>` : ''}
+      ${fHot.length ? `
+        <section class="mt-10">
+          <h2 class="text-xl font-extrabold">⭐ Hot right now</h2>
+          <div class="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">${fHot.map((f) => card(f, false)).join('')}</div>
+        </section>` : ''}
+      <section class="mt-10">
+        <h2 class="text-xl font-extrabold">Shops</h2>
+        ${fStores.length ? `
+          <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            ${fStores.map((s) => `
+              <a href="?s=${encodeURIComponent(s.id)}" class="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-200 hover:shadow-lg hover:-translate-y-0.5 transition fade-in">
+                <span class="w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-br ${tone(s.name)} grid place-items-center text-white text-xl font-extrabold">${esc(initials(s.name))}</span>
+                <span class="min-w-0">
+                  <span class="block font-bold truncate">${esc(s.name)}</span>
+                  <span class="block text-sm text-slate-500 truncate">${esc([s.category, s.city].filter(Boolean).join(' · '))}</span>
+                </span>
+                <span class="ml-auto text-indigo-600 font-semibold text-sm">Visit →</span>
+              </a>`).join('')}
+          </div>` : `<p class="mt-4 text-slate-500">${q ? 'Nothing matches your search.' : 'Shops are joining soon.'}</p>`}
+      </section>`;
+  };
+  render();
+  $('search').oninput = (e) => render(e.target.value.trim().toLowerCase());
+}
+
+// ------------------------------------------------------------------ store
+
+let cart = {};
+let shop = null;
+let items = [];
+let dealPrices = {};
+
+const priceOf = (it) => dealPrices[it.id] ?? it.price;
+const saveCart = () => store(`cart_${shopId}`, cart);
+const cartLines = () => Object.entries(cart).map(([id, qty]) => ({ item: items.find((i) => i.id === id), qty })).filter((l) => l.item && l.qty > 0);
+const cartTotal = () => cartLines().reduce((a, l) => a + priceOf(l.item) * l.qty, 0);
+
+function updateCartButton() {
+  const n = cartLines().reduce((a, l) => a + l.qty, 0);
+  $('cartBtn').classList.toggle('hidden', n === 0);
+  $('cartCount').textContent = n;
+  const bar = $('cartBar');
+  if (bar) {
+    bar.classList.toggle('hidden', n === 0);
+    $('cartBarText').textContent = `${n} item${n === 1 ? '' : 's'} · ${money(shop.currency, cartTotal())}`;
+  }
+}
+
+function add(id, d = 1) {
+  cart[id] = Math.max(0, (cart[id] || 0) + d);
+  if (!cart[id]) delete cart[id];
+  saveCart();
+  updateCartButton();
+}
+
+async function storePage() {
+  const s = await getDoc(doc(db, `storefronts/${shopId}`));
+  if (!s.exists() || !visible(s.data())) return emptyPage('Shop not available', 'This shop is not taking online orders right now.');
+  shop = { id: s.id, ...s.data() };
+  document.title = `${shop.name} · BizPOS`;
+  const [itemsSnap, dealsSnap] = await Promise.all([
+    getDocs(collection(db, `storefronts/${shopId}/items`)),
+    getDocs(query(collection(db, 'featured'), where('shopId', '==', shopId))).catch(() => ({ docs: [] })),
+  ]);
+  items = itemsSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  dealPrices = {};
+  for (const d of dealsSnap.docs) { const f = d.data(); if (f.kind === 'deal' && f.dealPrice != null) dealPrices[f.itemId] = f.dealPrice; }
+  cart = store(`cart_${shopId}`) || {};
+  const cats = [...new Set(items.map((i) => i.category).filter(Boolean))];
+  let cat = '';
+  let q = '';
+
+  const render = () => {
+    const list = items.filter((i) => (!cat || i.category === cat) && (!q || String(i.name).toLowerCase().includes(q)));
+    const wa = waNumber(shop.phone);
+    main.innerHTML = `
+      <section class="mt-6 rounded-3xl bg-white border border-slate-200 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4 fade-in">
+        <span class="w-16 h-16 shrink-0 rounded-2xl bg-gradient-to-br ${tone(shop.name)} grid place-items-center text-white text-2xl font-extrabold">${esc(initials(shop.name))}</span>
+        <div class="min-w-0">
+          <h1 class="text-2xl font-extrabold tracking-tight">${esc(shop.name)}</h1>
+          <p class="text-slate-500">${esc([shop.category, shop.city || shop.address].filter(Boolean).join(' · '))}</p>
+        </div>
+        <div class="sm:ml-auto flex gap-2">
+          ${wa ? `<a href="https://wa.me/${wa}" class="h-10 px-4 leading-10 rounded-xl bg-emerald-500 text-white text-sm font-semibold">WhatsApp</a>` : ''}
+          ${shop.phone ? `<a href="tel:${esc(shop.phone)}" class="h-10 px-4 leading-10 rounded-xl border border-slate-200 text-sm font-semibold">Call</a>` : ''}
+        </div>
+      </section>
+      ${cats.length > 1 ? `
+        <div class="mt-5 flex gap-2 overflow-x-auto no-scrollbar">
+          ${['', ...cats].map((c) => `<button data-cat="${esc(c)}" class="shrink-0 h-9 px-4 rounded-full text-sm font-semibold border ${c === cat ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-700'}">${c ? esc(c) : 'All'}</button>`).join('')}
+        </div>` : ''}
+      <div class="mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        ${list.map((i) => productCard(i, shop.currency, { deal: dealPrices[i.id] ?? null, add: true })).join('') || '<p class="col-span-full text-slate-500 py-10 text-center">No products found.</p>'}
+      </div>
+      <div id="cartBar" class="hidden fixed bottom-4 inset-x-4 z-20 max-w-xl mx-auto">
+        <button id="cartBarBtn" class="w-full h-14 rounded-2xl bg-indigo-600 text-white font-semibold shadow-xl shadow-indigo-600/30 flex items-center justify-between px-5">
+          <span id="cartBarText"></span><span>Checkout →</span>
+        </button>
+      </div>`;
+    main.querySelectorAll('[data-add]').forEach((b) => b.onclick = () => { add(b.dataset.add); b.textContent = 'Added ✓'; setTimeout(() => (b.textContent = 'Add'), 900); });
+    main.querySelectorAll('[data-cat]').forEach((b) => b.onclick = () => { cat = b.dataset.cat; render(); });
+    $('cartBarBtn').onclick = openCart;
+    updateCartButton();
+  };
+  render();
+  $('search').placeholder = `Search in ${shop.name}`;
+  $('search').oninput = (e) => { q = e.target.value.trim().toLowerCase(); render(); };
+  $('cartBtn').onclick = openCart;
+}
+
+function openCart() {
+  $('drawer').classList.remove('hidden');
+  renderCart();
+}
+function closeCart() { $('drawer').classList.add('hidden'); }
+$('drawerBg').onclick = closeCart;
+$('drawerClose').onclick = closeCart;
+
+function renderCart() {
+  const lines = cartLines();
+  const saved = store('customer') || {};
+  const body = $('drawerBody');
+  if (!lines.length) {
+    body.innerHTML = '<p class="text-slate-500 text-center py-16">Your cart is empty.</p>';
+    return;
+  }
+  body.innerHTML = `
+    <div class="space-y-3">
+      ${lines.map(({ item, qty }) => `
+        <div class="flex items-center gap-3">
+          <div class="w-14 h-14 rounded-xl overflow-hidden shrink-0">${thumb(item, 'w-14 h-14')}</div>
+          <div class="min-w-0 flex-1">
+            <div class="font-semibold text-sm truncate">${esc(item.name)}</div>
+            <div class="text-sm text-slate-500">${money(shop.currency, priceOf(item))}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button data-dec="${esc(item.id)}" class="w-8 h-8 rounded-lg border border-slate-200 font-bold">−</button>
+            <span class="w-6 text-center font-semibold">${qty}</span>
+            <button data-inc="${esc(item.id)}" class="w-8 h-8 rounded-lg border border-slate-200 font-bold">+</button>
+          </div>
+        </div>`).join('')}
+    </div>
+    <div class="mt-5 pt-4 border-t border-slate-200 flex justify-between font-extrabold text-lg">
+      <span>Total</span><span>${money(shop.currency, cartTotal())}</span>
+    </div>
+    <form id="orderForm" class="mt-6 space-y-3">
+      <h3 class="font-bold">Your details</h3>
+      <input name="name" required maxlength="80" value="${esc(saved.name)}" placeholder="Full name" class="w-full h-11 rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100">
+      <input name="phone" required minlength="7" maxlength="20" inputmode="tel" value="${esc(saved.phone)}" placeholder="Phone / WhatsApp" class="w-full h-11 rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100">
+      <textarea name="address" maxlength="300" rows="2" placeholder="Delivery address (or write 'pickup')" class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100">${esc(saved.address)}</textarea>
+      <input name="note" maxlength="300" placeholder="Note for the shop (optional)" class="w-full h-11 rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100">
+      <p id="orderError" class="hidden text-sm text-rose-600"></p>
+      <button id="placeBtn" class="w-full h-12 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold shadow-lg shadow-indigo-500/30">Place order</button>
+      <p class="text-xs text-slate-500 text-center">Pay the shop on delivery or pickup. The shop will call you to confirm.</p>
+    </form>`;
+  body.querySelectorAll('[data-inc]').forEach((b) => b.onclick = () => { add(b.dataset.inc, 1); renderCart(); });
+  body.querySelectorAll('[data-dec]').forEach((b) => b.onclick = () => { add(b.dataset.dec, -1); renderCart(); });
+  $('orderForm').onsubmit = placeOrder;
+}
+
+async function placeOrder(e) {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  const customer = { name: String(f.get('name')).trim(), phone: String(f.get('phone')).trim(), address: String(f.get('address')).trim() };
+  const err = $('orderError');
+  if (!customer.name || customer.phone.replace(/\D/g, '').length < 7) {
+    err.textContent = 'Please enter your name and a valid phone number.';
+    err.classList.remove('hidden');
+    return;
+  }
+  store('customer', customer);
+  const lines = cartLines();
+  const order = {
+    shopId,
+    ownerUid: shop.ownerUid,
+    shopName: shop.name || '',
+    currency: shop.currency || 'Rs',
+    items: lines.map(({ item, qty }) => ({ id: item.id, name: item.name, price: priceOf(item), qty })),
+    total: cartTotal(),
+    customerName: customer.name,
+    customerPhone: customer.phone,
+    address: customer.address,
+    note: String(f.get('note') || '').trim(),
+    status: 'new',
+    createdAt: serverTimestamp(),
+  };
+  const btn = $('placeBtn');
+  btn.disabled = true;
+  btn.textContent = 'Placing order…';
+  try {
+    const ref = await addDoc(collection(db, 'orders'), order);
+    cart = {};
+    saveCart();
+    updateCartButton();
+    const wa = waNumber(shop.phone);
+    const text = encodeURIComponent(`Assalam o Alaikum! I placed order ${ref.id.slice(0, 6).toUpperCase()} on BizPOS:\n` +
+      order.items.map((i) => `${i.qty} x ${i.name}`).join('\n') + `\nTotal: ${money(order.currency, order.total)}\n${customer.name}, ${customer.phone}`);
+    $('drawerBody').innerHTML = `
+      <div class="text-center py-10 fade-in">
+        <div class="w-16 h-16 mx-auto rounded-full bg-emerald-100 text-emerald-600 grid place-items-center text-3xl">✓</div>
+        <h3 class="mt-4 text-xl font-extrabold">Order placed!</h3>
+        <p class="mt-2 text-slate-500">Order no. <b>${ref.id.slice(0, 6).toUpperCase()}</b>. ${esc(shop.name)} will call you to confirm.</p>
+        ${wa ? `<a href="https://wa.me/${wa}?text=${text}" class="inline-block mt-6 px-5 h-11 leading-[44px] rounded-xl bg-emerald-500 text-white font-semibold">Send on WhatsApp</a>` : ''}
+      </div>`;
+  } catch (ex) {
+    btn.disabled = false;
+    btn.textContent = 'Place order';
+    err.textContent = 'Could not place the order. Please check your internet and try again.';
+    err.classList.remove('hidden');
+  }
+}
+
+// ------------------------------------------------------------------ start
+
+(async () => {
+  try {
+    await loadSettings();
+    if (settings.marketplaceOpen === false) return closedPage();
+    if (shopId) await storePage(); else await home();
+  } catch (e) {
+    console.error(e);
+    emptyPage('Something went wrong', 'Please check your internet and refresh the page.');
+  }
+})();
+</script>
+</body>
+</html>

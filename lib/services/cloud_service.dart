@@ -15,6 +15,7 @@ import '../core/firebase_config.dart';
 import '../core/ids.dart';
 import '../core/license.dart';
 import '../core/packages.dart';
+import 'store_service.dart';
 
 /// Turns Firebase Auth errors into short English messages.
 String authError(Object e) {
@@ -117,7 +118,11 @@ class CloudService extends ChangeNotifier {
         return MapEntry(k, v);
       });
 
+  /// settings/app as last read (branding, online store settings).
+  Map<String, dynamic> appSettings = {};
+
   void _applySettings(Map<String, dynamic> d) {
+    appSettings = d;
     final lic = LicenseService.instance;
     final footer = d['footer'] as String?;
     final phone = d['phone'] as String?;
@@ -134,6 +139,7 @@ class CloudService extends ChangeNotifier {
     if (u == null) {
       isAdmin = false;
       adminDoc = {};
+      StoreService.instance.watchOrders();
       shop = null;
       shopId = null;
       await _shopSub?.cancel();
@@ -285,6 +291,10 @@ class CloudService extends ChangeNotifier {
     }
     if (!_deviceRegistered) {
       _deviceRegistered = true;
+      final store = StoreService.instance;
+      store.watchOrders();
+      unawaited(store.pushStats());
+      unawaited(store.syncAll().catchError((_) {}));
       try {
         await db.doc('shops/$shopId').update({
           'devices.$_device.name': '${Platform.operatingSystem} ${Platform.operatingSystemVersion}'.trim(),
@@ -464,6 +474,7 @@ class CloudService extends ChangeNotifier {
       'features': p.features,
       'adFree': p.adFree,
       'maxProducts': p.maxProducts,
+      'onlineProducts': p.onlineProducts,
       'expiresAt': expires,
       'status': 'active',
       'updatedAt': FieldValue.serverTimestamp(),
@@ -482,6 +493,15 @@ class CloudService extends ChangeNotifier {
       'createdAt': FieldValue.serverTimestamp(),
     });
     await batch.commit();
+    await _storefrontAdmin(id, {'paidUntil': expires});
+  }
+
+  /// Admin change on a shop's online store, if the shop has one.
+  Future<void> _storefrontAdmin(String shopId, Map<String, dynamic> fields) async {
+    final ref = db.doc('storefronts/$shopId');
+    try {
+      if ((await ref.get()).exists) await ref.update({...fields, 'updatedAt': FieldValue.serverTimestamp()});
+    } catch (_) {}
   }
 
   // ----------------------------------------------------------- companies
@@ -591,6 +611,7 @@ class CloudService extends ChangeNotifier {
     final ownerUid = '${snap.data()?['ownerUid'] ?? ''}';
     final batch = db.batch();
     batch.delete(db.doc('shops/$shopId'));
+    batch.delete(db.doc('storefronts/$shopId'));
     if (ownerUid.isNotEmpty) {
       batch.set(db.doc('users/$ownerUid'), {'shopId': FieldValue.delete(), 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
     }
@@ -653,18 +674,26 @@ class CloudService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setFree(String shopId) => db.doc('shops/$shopId').update({
+  Future<void> setFree(String shopId) async {
+    await _setFree(shopId);
+    await _storefrontAdmin(shopId, {'published': false});
+  }
+
+  Future<void> _setFree(String shopId) => db.doc('shops/$shopId').update({
         'plan': 'free',
         'planName': 'Free',
         'features': <String>[],
         'adFree': false,
         'maxProducts': FieldValue.delete(),
+        'onlineProducts': FieldValue.delete(),
         'expiresAt': 0,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-  Future<void> setBlocked(String shopId, bool blocked) =>
-      db.doc('shops/$shopId').update({'status': blocked ? 'blocked' : 'active', 'updatedAt': FieldValue.serverTimestamp()});
+  Future<void> setBlocked(String shopId, bool blocked) async {
+    await db.doc('shops/$shopId').update({'status': blocked ? 'blocked' : 'active', 'updatedAt': FieldValue.serverTimestamp()});
+    await _storefrontAdmin(shopId, {'adminHidden': blocked});
+  }
 
   Future<void> savePackage(Package p) => db.doc('packages/${p.id}').set(p.toMap());
 

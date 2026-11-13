@@ -85,8 +85,74 @@ service cloud.firestore {
         && resource.data.ownerUid == request.auth.uid
         && resource.data.status != 'blocked'
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['name', 'category', 'phone', 'city', 'currency', 'devices', 'updatedAt']));
+             .hasOnly(['name', 'category', 'phone', 'city', 'currency', 'devices', 'stats', 'updatedAt']));
 
+      allow delete: if isAdmin();
+    }
+
+    // ----------------------------------------------------------- online store
+
+    function shopData(shopId) {
+      return get(/databases/$(database)/documents/shops/$(shopId)).data;
+    }
+
+    // The shop may go online on a paid plan, or when the super admin set a limit for it.
+    function mayPublish(shopId) {
+      return shopData(shopId).plan != 'free' || shopData(shopId).get('onlineLimit', null) != null;
+    }
+
+    function ownerStoreWrite(shopId) {
+      return signedIn()
+        && shopData(shopId).ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.shopId == shopId
+        // The plan expiry shown to the website must be the real one.
+        && request.resource.data.paidUntil == shopData(shopId).get('expiresAt', 0)
+        && (request.resource.data.published == false || mayPublish(shopId));
+    }
+
+    // Public store card. adminHidden is set only by the super admin.
+    match /storefronts/{shopId} {
+      allow get: if true;
+      allow list: if isAdmin()
+        || (resource.data.published == true && resource.data.adminHidden == false);
+      allow create: if isAdmin() || (ownerStoreWrite(shopId) && request.resource.data.adminHidden == false);
+      allow update: if isAdmin() || (ownerStoreWrite(shopId) && request.resource.data.adminHidden == resource.data.adminHidden);
+      allow delete: if isAdmin();
+
+      // Products shown online.
+      match /items/{itemId} {
+        allow read: if true;
+        allow write: if isAdmin() || (signedIn() && shopData(shopId).ownerUid == request.auth.uid);
+      }
+    }
+
+    // Hot products and deals on the website home, picked by the super admin.
+    match /featured/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Orders placed on the website by customers (no account needed).
+    match /orders/{id} {
+      allow create: if request.resource.data.status == 'new'
+        && request.resource.data.keys().hasOnly(['shopId', 'ownerUid', 'shopName', 'currency', 'items', 'total',
+             'customerName', 'customerPhone', 'address', 'note', 'status', 'createdAt'])
+        && request.resource.data.items is list
+        && request.resource.data.items.size() > 0
+        && request.resource.data.items.size() <= 50
+        && request.resource.data.total is number
+        && request.resource.data.customerName is string
+        && request.resource.data.customerName.size() > 0
+        && request.resource.data.customerName.size() <= 80
+        && request.resource.data.customerPhone is string
+        && request.resource.data.customerPhone.size() >= 7
+        && request.resource.data.customerPhone.size() <= 20
+        && get(/databases/$(database)/documents/storefronts/$(request.resource.data.shopId)).data.published == true
+        && get(/databases/$(database)/documents/storefronts/$(request.resource.data.shopId)).data.ownerUid == request.resource.data.ownerUid;
+      allow read: if isAdmin() || (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow update: if isAdmin() || (signedIn() && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']));
       allow delete: if isAdmin();
     }
 

@@ -123,3 +123,39 @@ test('verified owner finds the company made for their email', async () => {
   await assertSucceeds(getDocs(q(verified)));
   await assertFails(getDocs(q(unverified)));
 });
+
+test('online store: paid shops publish, website reads, customers order', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'shops/paid1'), { ownerUid: 'gina', name: 'Gina Store', plan: 'pro-monthly', status: 'active', expiresAt: 4102444800000 });
+  });
+  const card = (extra) => ({ shopId: 'paid1', ownerUid: 'gina', name: 'Gina Store', paidUntil: 4102444800000, published: true, adminHidden: false, ...extra });
+  // A free shop cannot go online; a paid one can.
+  await assertFails(setDoc(doc(as('alice'), 'storefronts/s1'), { shopId: 's1', ownerUid: 'alice', paidUntil: 0, published: true, adminHidden: false }));
+  await assertFails(setDoc(doc(as('gina'), 'storefronts/paid1'), card({ paidUntil: 0 })));
+  await assertFails(setDoc(doc(as('gina'), 'storefronts/paid1'), card({ adminHidden: true })));
+  await assertSucceeds(setDoc(doc(as('gina'), 'storefronts/paid1'), card()));
+  await assertSucceeds(setDoc(doc(as('gina'), 'storefronts/paid1/items/p1'), { name: 'Rice', price: 100 }));
+  await assertFails(setDoc(doc(as('alice'), 'storefronts/paid1/items/p2'), { name: 'Hack', price: 1 }));
+  // The owner cannot unhide a store the super admin hid.
+  await assertSucceeds(updateDoc(doc(as('boss'), 'storefronts/paid1'), { adminHidden: true }));
+  await assertFails(updateDoc(doc(as('gina'), 'storefronts/paid1'), { adminHidden: false }));
+  await assertSucceeds(updateDoc(doc(as('boss'), 'storefronts/paid1'), { adminHidden: false }));
+  // Anyone reads the public store and its products; only the admin features products.
+  await assertSucceeds(getDoc(doc(anon(), 'storefronts/paid1')));
+  await assertSucceeds(getDocs(query(collection(anon(), 'storefronts'), where('published', '==', true), where('adminHidden', '==', false))));
+  await assertSucceeds(getDocs(collection(anon(), 'storefronts/paid1/items')));
+  await assertFails(setDoc(doc(as('gina'), 'featured/x'), { kind: 'hot' }));
+  await assertSucceeds(setDoc(doc(as('boss'), 'featured/x'), { kind: 'hot' }));
+  // A customer without an account places an order; only the owner reads it.
+  const order = { shopId: 'paid1', ownerUid: 'gina', shopName: 'Gina Store', currency: 'Rs', items: [{ id: 'p1', name: 'Rice', price: 100, qty: 2 }],
+    total: 200, customerName: 'Zara', customerPhone: '03001234567', address: 'Lahore', note: '', status: 'new' };
+  await assertSucceeds(setDoc(doc(anon(), 'orders/o1'), order));
+  await assertFails(setDoc(doc(anon(), 'orders/o2'), { ...order, status: 'delivered' }));
+  await assertFails(setDoc(doc(anon(), 'orders/o3'), { ...order, ownerUid: 'mallory' }));
+  await assertFails(getDoc(doc(anon(), 'orders/o1')));
+  await assertFails(getDoc(doc(as('alice'), 'orders/o1')));
+  await assertSucceeds(getDoc(doc(as('gina'), 'orders/o1')));
+  await assertSucceeds(updateDoc(doc(as('gina'), 'orders/o1'), { status: 'confirmed' }));
+  await assertFails(updateDoc(doc(as('gina'), 'orders/o1'), { total: 1 }));
+});

@@ -17,6 +17,7 @@ import '../super_admin/super_admin_login.dart';
 import '../../../services/biometric_service.dart';
 import '../../tokens.dart';
 import 'company_form.dart';
+import 'store_admin.dart';
 
 int _ms(Object? v) => v is Timestamp ? v.millisecondsSinceEpoch : (v is num ? v.toInt() : 0);
 
@@ -184,11 +185,20 @@ class _AdminHomeState extends State<AdminHome> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = [const _Overview(), const _Shops(), const _Packages(), const _Requests(), const _AdminSettings()];
+    final pages = [const _Overview(), const _Shops(), const _Packages(), const StoreAdmin(), const _Requests(), const _AdminSettings()];
     return Scaffold(
       appBar: AppBar(
-        title: Text(tr(['Overview', 'Shops', 'Packages', 'Requests', 'Settings'][_tab])),
+        title: Text(tr(['Overview', 'Shops', 'Packages', 'Website', 'Requests', 'Settings'][_tab])),
         actions: [
+          if (_tab == 1)
+            IconButton(
+              tooltip: tr('Email all owners'),
+              icon: const Icon(Icons.forward_to_inbox_rounded),
+              onPressed: () async {
+                final shops = await CloudService.instance.shops().first;
+                if (context.mounted) await emailOwners(context, [for (final s in shops) '${s['ownerEmail'] ?? ''}']);
+              },
+            ),
           IconButton(
             tooltip: tr('Log out of super admin'),
             icon: const Icon(Icons.logout_rounded),
@@ -216,6 +226,7 @@ class _AdminHomeState extends State<AdminHome> {
           NavigationDestination(icon: const Icon(Icons.insights_outlined), label: tr('Overview')),
           NavigationDestination(icon: const Icon(Icons.store_outlined), label: tr('Shops')),
           NavigationDestination(icon: const Icon(Icons.inventory_2_outlined), label: tr('Packages')),
+          NavigationDestination(icon: const Icon(Icons.public_rounded), label: tr('Website')),
           NavigationDestination(icon: const Icon(Icons.mark_email_unread_outlined), label: tr('Requests')),
           NavigationDestination(icon: const Icon(Icons.settings_outlined), label: tr('Settings')),
         ],
@@ -489,6 +500,25 @@ class ShopAdminDetail extends StatelessWidget {
                   ),
                 ),
               ),
+            if (d['stats'] is Map) _StatsCard(stats: Map<String, dynamic>.from(d['stats'] as Map)),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.mail_rounded),
+                  label: Text(tr('Email owner')),
+                  onPressed: () => emailOwners(context, ['${d['ownerEmail'] ?? ''}'], subject: 'BizPOS: ${d['name'] ?? ''}'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.public_rounded),
+                  label: Text(tr('Online store')),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => StoreAdminDetail(shopId: shopId))),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 8),
             if ('${d['ownerName'] ?? ''}'.isNotEmpty) KeyValue('Owner name', '${d['ownerName']}'),
             KeyValue('Owner', '${d['ownerEmail'] ?? ''}'),
             KeyValue('Phone', phone),
@@ -673,6 +703,7 @@ class _PackageEditorState extends State<PackageEditor> {
   late final _amount = TextEditingController(text: numText(p.amount));
   late final _days = TextEditingController(text: '${p.days}');
   late final _maxProducts = TextEditingController(text: '${p.maxProducts}');
+  late final _onlineProducts = TextEditingController(text: '${p.onlineProducts}');
   late final _sort = TextEditingController(text: '${p.sort}');
   late final _desc = TextEditingController(text: p.description);
   late final Set<String> _features = {...p.features};
@@ -686,6 +717,7 @@ class _PackageEditorState extends State<PackageEditor> {
       ..amount = Fmt.parse(_amount.text)
       ..days = int.tryParse(_days.text.trim()) ?? 30
       ..maxProducts = int.tryParse(_maxProducts.text.trim()) ?? 0
+      ..onlineProducts = int.tryParse(_onlineProducts.text.trim()) ?? 3
       ..sort = int.tryParse(_sort.text.trim()) ?? 0
       ..description = _desc.text.trim()
       ..features = _features.toList()
@@ -724,6 +756,8 @@ class _PackageEditorState extends State<PackageEditor> {
         TextField(controller: _desc, maxLines: 2, decoration: InputDecoration(labelText: tr('Description'))),
         gap,
         NumField(controller: _maxProducts, label: 'Max products (0 = unlimited)'),
+        const SizedBox(height: 12),
+        NumField(controller: _onlineProducts, label: 'Products on the online store (0 = unlimited)'),
         const SizedBox(height: 12),
                 NumField(controller: _sort, label: 'Order in list'),
         const SectionTitle('Features'),
@@ -1113,4 +1147,47 @@ Future<void> _editProductLimit(BuildContext context, String shopId, num? current
     }),
     success: 'Saved',
   );
+}
+
+
+/// Numbers the shop app sends to the super admin.
+class _StatsCard extends StatelessWidget {
+  const _StatsCard({required this.stats});
+  final Map<String, dynamic> stats;
+
+  @override
+  Widget build(BuildContext context) {
+    int n(String k) => ((stats[k] ?? 0) as num).toInt();
+    final at = n('at');
+    final lastSale = n('lastSale');
+    Widget cell(String label, String value, Color c) => Expanded(
+          child: Column(children: [
+            Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: c)),
+            Text(tr(label), style: Theme.of(context).textTheme.bodySmall, textAlign: TextAlign.center),
+          ]),
+        );
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
+        child: Column(children: [
+          Row(children: [
+            cell('Products', '${n('products')}', Tw.indigo400),
+            cell('Customers', '${n('customers')}', Tw.sky400),
+            cell('Suppliers', '${n('suppliers')}', Tw.violet500),
+          ]),
+          const SizedBox(height: 12),
+          Row(children: [
+            cell('Sales this month', Fmt.money(((stats['salesMonth'] ?? 0) as num).toDouble()), Tw.emerald500),
+            cell('Bills this month', '${n('salesCountMonth')}', Tw.amber500),
+          ]),
+          const SizedBox(height: 8),
+          Text(
+            '${tr('Last sale')}: ${lastSale == 0 ? '—' : Fmt.dateTime(lastSale)} · ${tr('Updated')}: ${at == 0 ? '—' : Fmt.dateTime(at)}',
+            style: Theme.of(context).textTheme.bodySmall,
+            textAlign: TextAlign.center,
+          ),
+        ]),
+      ),
+    );
+  }
 }

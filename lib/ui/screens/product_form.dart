@@ -10,6 +10,7 @@ import '../../core/i18n.dart';
 import '../../core/ids.dart';
 import '../../models/models.dart';
 import '../../services/product_service.dart';
+import '../../services/store_service.dart';
 import '../brand.dart';
 import '../common.dart';
 import 'inventory_screen.dart';
@@ -233,7 +234,10 @@ class _ProductFormState extends State<ProductForm> {
     }, success: 'Saved');
     if (!mounted) return;
     setState(() => _saving = false);
-    if (ok) Navigator.pop(context);
+    if (ok) {
+      StoreService.instance.productChanged(p.id);
+      Navigator.pop(context);
+    }
   }
 
   Future<void> _delete() async {

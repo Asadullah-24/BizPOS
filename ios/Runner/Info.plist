@@ -64,5 +64,18 @@
 		<string>tel</string>
 		<string>sms</string>
 	</array>
+	<key>GIDClientID</key>
+	<string>63118621975-gd1qkahehp81o2keffmv8sii9jrk6r90.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.63118621975-gd1qkahehp81o2keffmv8sii9jrk6r90</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

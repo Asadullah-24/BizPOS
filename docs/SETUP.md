@@ -78,7 +78,7 @@ come from a subscription or an offline code. To let a shop try them, assign the 
 * Overview: shops, paid, free, blocked, revenue this month, pending requests, plans expiring in 7 days.
 * Shops: search and filter; open a shop to activate or extend a package (days are added to any time left),
   set free, block/unblock, see devices and payment history, WhatsApp the owner.
-* Packages: create, edit, hide or delete packages (name, price text, amount, days or lifetime, features, no ads).
+* Packages: create, edit, hide or delete packages (name, price text, amount, days or lifetime, features).
   *Create default packages* adds Free trial (14 days), Starter, Pro monthly, Pro yearly and Lifetime Basic.
 * Requests: shops request a package from their Plan screen; approve (records the payment) or reject.
 * Settings: branding (footer and support phone for every shop), 2FA on/off for the panel, account password,

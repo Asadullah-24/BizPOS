@@ -131,6 +131,9 @@ def manifest(s: str) -> str:
 
 
 # ---------------------------------------------------------------- iOS
+# From GoogleService-Info.plist (CLIENT_ID).
+IOS_GOOGLE_CLIENT_ID = "63118621975-gd1qkahehp81o2keffmv8sii9jrk6r90.apps.googleusercontent.com"
+
 IOS_KEYS = {
     "NSCameraUsageDescription": "The camera is used to scan product barcodes and take product photos.",
     "NSMicrophoneUsageDescription": "The microphone is used for voice stock updates.",
@@ -147,6 +150,17 @@ def info_plist(s: str) -> str:
         if key not in s:
             additions += f"\t<key>{key}</key>\n\t<string>{value}</string>\n"
     s = re.sub(r"\s*<key>GADApplicationIdentifier</key>\s*<string>[^<]*</string>", "", s)
+    # Google sign-in on iOS: client id and the reversed client id URL scheme.
+    if "GIDClientID" not in s:
+        additions += f"\t<key>GIDClientID</key>\n\t<string>{IOS_GOOGLE_CLIENT_ID}</string>\n"
+    if "CFBundleURLTypes" not in s:
+        reversed_id = "com.googleusercontent.apps." + IOS_GOOGLE_CLIENT_ID.split(".apps.googleusercontent.com")[0]
+        additions += (
+            "\t<key>CFBundleURLTypes</key>\n\t<array>\n\t\t<dict>\n"
+            "\t\t\t<key>CFBundleTypeRole</key>\n\t\t\t<string>Editor</string>\n"
+            "\t\t\t<key>CFBundleURLSchemes</key>\n\t\t\t<array>\n"
+            f"\t\t\t\t<string>{reversed_id}</string>\n\t\t\t</array>\n\t\t</dict>\n\t</array>\n"
+        )
     if "LSApplicationQueriesSchemes" not in s:
         additions += (
             "\t<key>LSApplicationQueriesSchemes</key>\n\t<array>\n"

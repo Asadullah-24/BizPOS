@@ -30,7 +30,7 @@ import 'reports_screen.dart';
 import 'sale_detail_screen.dart';
 
 class _DashData {
-  _DashData(this.today, this.month, this.week, this.low, this.receivable, this.payable, this.recent);
+  _DashData(this.today, this.month, this.week, this.low, this.receivable, this.payable, this.recent, this.online, this.onlineCount);
   final ReportData today;
   final ReportData month;
   final ReportData week;
@@ -38,6 +38,10 @@ class _DashData {
   final double receivable;
   final double payable;
   final List<DbRow> recent;
+
+  /// Sales that came from the online store this month.
+  final double online;
+  final int onlineCount;
 }
 
 class DashboardScreen extends StatelessWidget {
@@ -54,6 +58,13 @@ class DashboardScreen extends StatelessWidget {
       await LedgerService.totalBalance('customer'),
       await LedgerService.totalBalance('supplier'),
       await SalesService.list(limit: 6),
+      await Db.instance.s.scalar(
+          "SELECT COALESCE(SUM(total),0) FROM sales WHERE deleted_at IS NULL AND status != 'cancelled' AND source = 'online' AND created_at >= ?",
+          [DateTime(now.year, now.month).millisecondsSinceEpoch]),
+      (await Db.instance.s.scalar(
+              "SELECT COUNT(*) FROM sales WHERE deleted_at IS NULL AND status != 'cancelled' AND source = 'online' AND created_at >= ?",
+              [DateTime(now.year, now.month).millisecondsSinceEpoch]))
+          .toInt(),
     );
   }
 
@@ -145,6 +156,15 @@ class DashboardScreen extends StatelessWidget {
                 color: d.low.isEmpty ? Tw.emerald500 : Tw.amber500,
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InventoryScreen(lowOnly: true))),
               ),
+            if (d.onlineCount > 0)
+              StatCard(
+                label: 'Online sales (month)',
+                value: Fmt.money(d.online),
+                icon: Icons.public_rounded,
+                color: Tw.cyan400,
+                sub: '${d.onlineCount} ${tr('orders')}',
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrdersScreen())),
+              ),
             if (app.hasModule(Mod.expenses))
               StatCard(label: 'Expenses (month)', value: Fmt.money(d.month.expenses), icon: Icons.receipt_rounded, color: Tw.rose400),
           ];
@@ -226,7 +246,8 @@ class DashboardScreen extends StatelessWidget {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(color: Tw.indigo500.withOpacity(0.14), borderRadius: BorderRadius.circular(12)),
-                          child: const Icon(Icons.receipt_long_rounded, color: Tw.indigo400, size: 20),
+                          child: Icon(s['source'] == 'online' ? Icons.public_rounded : Icons.receipt_long_rounded,
+                              color: s['source'] == 'online' ? Tw.cyan400 : Tw.indigo400, size: 20),
                         ),
                         title: Text(s['invoice_no'] as String, style: const TextStyle(fontWeight: FontWeight.w600)),
                         subtitle: Text('${s['customer_name'] ?? tr('Walk-in customer')} · ${Fmt.time(asInt(s['created_at']))}',

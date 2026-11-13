@@ -208,6 +208,9 @@ class StoreService extends ChangeNotifier {
 
   int newOrders = 0;
   StreamSubscription? _orderSub;
+
+  /// Set by the app to show an in-app alert when an order arrives.
+  void Function(Map<String, dynamic> order)? onNewOrder;
   String? _watchingUid;
 
   /// Notifies the owner about new website orders while the app is open.
@@ -235,6 +238,7 @@ class StoreService extends ChangeNotifier {
         if (seen.contains(d.id)) continue;
         seen.add(d.id);
         final o = d.data();
+        onNewOrder?.call({'id': d.id, ...o});
         await AlertService.notify(
           d.id.hashCode & 0x7fffffff,
           'New online order',
@@ -294,6 +298,27 @@ class StoreService extends ChangeNotifier {
       .snapshots()
       .map((q) => q.docs.map((d) => {'id': d.id, ...d.data()}).toList()
         ..sort((a, b) => _ms(b['createdAt']).compareTo(_ms(a['createdAt']))));
+
+  // ------------------------------------------------------------- coins
+
+  bool get coinsEnabled => _cloud.appSettings['coinsEnabled'] == true;
+  num get coinsPerHundred => (_cloud.appSettings['coinsPerHundred'] as num?) ?? 1;
+  num get coinValue => (_cloud.appSettings['coinValue'] as num?) ?? 1;
+  num get coinsMaxPercent => (_cloud.appSettings['coinsMaxPercent'] as num?) ?? 10;
+
+  Future<void> saveCoins({bool? enabled, num? perHundred, num? value, num? maxPercent}) => _db.doc('settings/app').set({
+        if (enabled != null) 'coinsEnabled': enabled,
+        if (perHundred != null) 'coinsPerHundred': perHundred,
+        if (value != null) 'coinValue': value,
+        if (maxPercent != null) 'coinsMaxPercent': maxPercent,
+      }, SetOptions(merge: true));
+
+  /// Orders paid partly with BizPOS coins (what BizPOS owes the shops).
+  Stream<List<Map<String, dynamic>>> coinOrders() => _db
+      .collection('orders')
+      .where('coinsUsed', isGreaterThan: 0)
+      .snapshots()
+      .map((q) => q.docs.map((d) => {'id': d.id, ...d.data()}).toList());
 
   Future<void> saveMarketSettings({bool? open, int? defaultLimit, String? websiteUrl, String? brandName, String? brandLogo}) =>
       _db.doc('settings/app').set({

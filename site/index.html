@@ -35,6 +35,7 @@
         <input id="search" type="search" placeholder="Search products or shops"
           class="w-full h-10 rounded-xl border border-slate-200 bg-slate-100 px-4 text-sm outline-none focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100">
       </div>
+      <button id="accountBtn" class="shrink-0 h-10 px-3 rounded-xl border border-slate-200 text-sm font-semibold hover:bg-slate-100">Sign in</button>
       <button id="cartBtn" class="hidden relative shrink-0 h-10 px-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700">
         Cart <span id="cartCount" class="ml-1 inline-grid place-items-center min-w-5 h-5 px-1 rounded-full bg-white text-indigo-700 text-xs">0</span>
       </button>
@@ -66,10 +67,25 @@
     </aside>
   </div>
 
+  <!-- Account modal -->
+  <div id="modal" class="fixed inset-0 z-50 hidden">
+    <div id="modalBg" class="absolute inset-0 bg-slate-900/50"></div>
+    <div class="absolute inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[90vh] overflow-y-auto fade-in">
+      <div class="h-14 px-5 flex items-center justify-between border-b border-slate-200">
+        <h2 id="modalTitle" class="font-bold text-lg">Account</h2>
+        <button id="modalClose" class="w-9 h-9 rounded-lg hover:bg-slate-100 text-xl">×</button>
+      </div>
+      <div id="modalBody" class="p-5"></div>
+    </div>
+  </div>
+
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js';
-import { getFirestore, doc, getDoc, getDocs, collection, query, where, addDoc, serverTimestamp }
+import { getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, collection, query, where, addDoc, serverTimestamp, writeBatch, increment }
   from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut,
+  GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail, updateProfile }
+  from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js';
 
 const app = initializeApp({
   apiKey: 'AIzaSyBwC3mZE1eseWzjoUCkHV2e_Q3KAAYvvE8',
@@ -80,6 +96,7 @@ const app = initializeApp({
   appId: '1:63118621975:web:172defd7f1978470a84b52',
 });
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 const $ = (id) => document.getElementById(id);
 const main = $('app');
@@ -163,6 +180,190 @@ function productCard(item, cur, { storeName = '', href = '', deal = null, add = 
             class="mt-3 w-full h-9 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:bg-slate-300">Add</button>` : ''}
       </div>
     </div>`;
+}
+
+// ------------------------------------------------------------------ shopper account and coins
+
+let user = null;
+let shopper = null;
+const coinsOn = () => settings.coinsEnabled === true;
+const inputCls = 'w-full h-11 rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100';
+const btnCls = 'w-full h-11 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold';
+
+async function loadShopper() {
+  if (!user) { shopper = null; return; }
+  const ref = doc(db, `shoppers/${user.uid}`);
+  let s = await getDoc(ref).catch(() => null);
+  if (!s || !s.exists()) {
+    const fresh = { name: user.displayName || '', phone: '', address: '', email: user.email || '', coins: 0, createdAt: serverTimestamp() };
+    await setDoc(ref, fresh).catch(() => {});
+    s = await getDoc(ref).catch(() => null);
+  }
+  shopper = s && s.exists() ? s.data() : { coins: 0 };
+}
+
+function updateAccountButton() {
+  const b = $('accountBtn');
+  if (!user) { b.textContent = 'Sign in'; return; }
+  const first = (shopper?.name || user.displayName || user.email || 'Me').split(' ')[0];
+  b.innerHTML = coinsOn() ? `${esc(first)} <span class="ml-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs">🪙 ${shopper?.coins || 0}</span>` : esc(first);
+}
+
+onAuthStateChanged(auth, async (u) => {
+  user = u;
+  await loadShopper();
+  updateAccountButton();
+});
+
+function openModal(title, html) {
+  $('modalTitle').textContent = title;
+  $('modalBody').innerHTML = html;
+  $('modal').classList.remove('hidden');
+}
+function closeModal() { $('modal').classList.add('hidden'); }
+$('modalBg').onclick = closeModal;
+$('modalClose').onclick = closeModal;
+$('accountBtn').onclick = () => (user ? accountPage() : signInPage());
+
+function signInPage(mode = 'in') {
+  openModal(mode === 'in' ? 'Sign in' : 'Create account', `
+    <div class="grid grid-cols-2 p-1 rounded-xl bg-slate-100 mb-5 text-sm font-semibold">
+      <button data-mode="in" class="h-9 rounded-lg ${mode === 'in' ? 'bg-white shadow' : 'text-slate-500'}">Sign in</button>
+      <button data-mode="up" class="h-9 rounded-lg ${mode === 'up' ? 'bg-white shadow' : 'text-slate-500'}">Create account</button>
+    </div>
+    <form id="authForm" class="space-y-3">
+      ${mode === 'up' ? `<input name="name" required placeholder="Your name" class="${inputCls}">` : ''}
+      <input name="email" type="email" required placeholder="Email" class="${inputCls}">
+      <input name="password" type="password" required minlength="6" placeholder="Password" class="${inputCls}">
+      <p id="authError" class="hidden text-sm text-rose-600"></p>
+      <button class="${btnCls}">${mode === 'in' ? 'Sign in' : 'Create account'}</button>
+      ${mode === 'in' ? '<button type="button" id="forgot" class="w-full text-sm text-indigo-600 font-semibold">Forgot password?</button>' : ''}
+    </form>
+    <div class="my-4 flex items-center gap-3 text-xs text-slate-400"><span class="flex-1 h-px bg-slate-200"></span>or<span class="flex-1 h-px bg-slate-200"></span></div>
+    <button id="google" class="w-full h-11 rounded-xl border border-slate-300 font-semibold flex items-center justify-center gap-2">
+      <svg viewBox="0 0 48 48" class="w-5 h-5"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.6 13.3l7.8 6C12.3 13.4 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.4 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.9-4.7l-7.8-6A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.7l7.8-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.7-3.9-13.6-9.8l-7.8 6C6.6 42.6 14.6 48 24 48z"/></svg>
+      Continue with Google
+    </button>
+    ${coinsOn() ? '<p class="mt-4 text-sm text-center text-amber-700 bg-amber-50 rounded-xl p-3">🪙 Earn BizPOS coins on every order and use them for discounts.</p>' : ''}`);
+  $('modalBody').querySelectorAll('[data-mode]').forEach((b) => b.onclick = () => signInPage(b.dataset.mode));
+  const fail = (e) => {
+    const map = { 'auth/invalid-credential': 'Wrong email or password.', 'auth/email-already-in-use': 'This email already has an account. Sign in instead.',
+      'auth/weak-password': 'Use at least 6 characters.', 'auth/unauthorized-domain': 'Google sign-in is not enabled for this website yet. Use email.',
+      'auth/popup-closed-by-user': 'Sign-in was cancelled.' };
+    $('authError').textContent = map[e.code] || e.message;
+    $('authError').classList.remove('hidden');
+  };
+  $('authForm').onsubmit = async (ev) => {
+    ev.preventDefault();
+    const f = new FormData(ev.target);
+    try {
+      if (mode === 'in') await signInWithEmailAndPassword(auth, f.get('email'), f.get('password'));
+      else {
+        const c = await createUserWithEmailAndPassword(auth, f.get('email'), f.get('password'));
+        await updateProfile(c.user, { displayName: String(f.get('name')).trim() });
+        await setDoc(doc(db, `shoppers/${c.user.uid}`), { name: String(f.get('name')).trim(), phone: '', address: '', email: c.user.email, coins: 0, createdAt: serverTimestamp() }).catch(() => {});
+      }
+      user = auth.currentUser;
+      await loadShopper();
+      updateAccountButton();
+      closeModal();
+    } catch (e) { fail(e); }
+  };
+  const forgot = $('forgot');
+  if (forgot) forgot.onclick = async () => {
+    const email = $('authForm').email.value.trim();
+    if (!email) { $('authError').textContent = 'Type your email first.'; $('authError').classList.remove('hidden'); return; }
+    try { await sendPasswordResetEmail(auth, email); $('authError').textContent = 'Reset link sent. Check your email and spam folder.'; $('authError').className = 'text-sm text-emerald-600'; }
+    catch (e) { fail(e); }
+  };
+  $('google').onclick = async () => {
+    try { await signInWithPopup(auth, new GoogleAuthProvider()); user = auth.currentUser; await loadShopper(); updateAccountButton(); closeModal(); }
+    catch (e) { fail(e); }
+  };
+}
+
+const statusInfo = {
+  new: ['Waiting for the shop', 'bg-amber-100 text-amber-700'],
+  confirmed: ['Confirmed', 'bg-sky-100 text-sky-700'],
+  delivered: ['Delivered', 'bg-emerald-100 text-emerald-700'],
+  cancelled: ['Cancelled', 'bg-rose-100 text-rose-700'],
+};
+const statusPill = (st) => `<span class="px-2.5 py-1 rounded-full text-xs font-bold ${(statusInfo[st] || statusInfo.new)[1]}">${(statusInfo[st] || statusInfo.new)[0]}</span>`;
+const orderCode = (id) => String(id).slice(0, 6).toUpperCase();
+
+async function accountPage() {
+  await loadShopper();
+  updateAccountButton();
+  let orders = [];
+  try {
+    const q = await getDocs(query(collection(db, 'orders'), where('customerUid', '==', user.uid)));
+    orders = q.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+  } catch (e) { console.error(e); }
+  openModal('My account', `
+    ${coinsOn() ? `
+      <div class="rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white p-4 mb-5">
+        <div class="text-sm text-white/90">BizPOS coins</div>
+        <div class="text-3xl font-extrabold">🪙 ${shopper?.coins || 0}</div>
+        <div class="text-xs text-white/90 mt-1">Earn ${esc(settings.coinsPerHundred ?? 1)} coin(s) per Rs 100 when your order is delivered. 1 coin = Rs ${esc(settings.coinValue ?? 1)} off.</div>
+      </div>` : ''}
+    <form id="profileForm" class="space-y-3">
+      <input name="name" value="${esc(shopper?.name)}" placeholder="Name" class="${inputCls}">
+      <input name="phone" value="${esc(shopper?.phone)}" placeholder="Phone / WhatsApp" class="${inputCls}">
+      <textarea name="address" rows="2" placeholder="Delivery address" class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-500">${esc(shopper?.address)}</textarea>
+      <button class="${btnCls}">Save</button>
+      <p id="profileMsg" class="hidden text-sm text-emerald-600 text-center">Saved</p>
+    </form>
+    <h3 class="mt-6 font-bold">My orders</h3>
+    <div class="mt-3 space-y-2">
+      ${orders.length ? orders.map((o) => `
+        <a href="?o=${encodeURIComponent(o.id)}" class="block p-3 rounded-xl border border-slate-200 hover:bg-slate-50">
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-semibold">#${orderCode(o.id)} · ${esc(o.shopName)}</span>${statusPill(o.status)}
+          </div>
+          <div class="text-sm text-slate-500 mt-1">${money(o.currency, (o.total || 0) - (o.coinDiscount || 0))}${o.coinsAwarded ? ` · +${o.coinsAwarded} coins` : ''}</div>
+        </a>`).join('') : '<p class="text-sm text-slate-500">No orders yet.</p>'}
+    </div>
+    <button id="signOut" class="mt-6 w-full h-11 rounded-xl border border-slate-300 font-semibold">Sign out</button>`);
+  $('profileForm').onsubmit = async (ev) => {
+    ev.preventDefault();
+    const f = new FormData(ev.target);
+    await updateDoc(doc(db, `shoppers/${user.uid}`), { name: String(f.get('name')).trim(), phone: String(f.get('phone')).trim(), address: String(f.get('address')).trim(), updatedAt: serverTimestamp() }).catch(console.error);
+    await loadShopper();
+    updateAccountButton();
+    $('profileMsg').classList.remove('hidden');
+  };
+  $('signOut').onclick = async () => { await signOut(auth); closeModal(); };
+}
+
+// ------------------------------------------------------------------ order tracking
+
+async function trackPage(orderId) {
+  const snap = await getDoc(doc(db, `orders/${orderId}`)).catch(() => null);
+  if (!snap || !snap.exists()) return emptyPage('Order not found', 'Check the link and try again.');
+  const o = snap.data();
+  document.title = `Order #${orderCode(orderId)} · ${brand}`;
+  const steps = ['new', 'confirmed', 'delivered'];
+  const at = o.status === 'cancelled' ? -1 : steps.indexOf(o.status);
+  main.innerHTML = `
+    <section class="mt-6 max-w-xl mx-auto bg-white rounded-3xl border border-slate-200 p-6 fade-in">
+      <div class="flex items-center justify-between gap-2">
+        <div><div class="text-sm text-slate-500">Order</div><h1 class="text-2xl font-extrabold">#${orderCode(orderId)}</h1></div>
+        ${statusPill(o.status)}
+      </div>
+      <p class="mt-1 text-slate-500">${esc(o.shopName)}</p>
+      ${o.status === 'cancelled' ? '<p class="mt-5 p-3 rounded-xl bg-rose-50 text-rose-700 text-sm">This order was cancelled by the shop.</p>' : `
+        <div class="mt-6 grid grid-cols-3 gap-2 text-center text-xs font-semibold">
+          ${['Placed', 'Confirmed', 'Delivered'].map((t, i) => `
+            <div><div class="h-2 rounded-full ${i <= at ? 'bg-emerald-500' : 'bg-slate-200'}"></div><div class="mt-2 ${i <= at ? 'text-emerald-700' : 'text-slate-400'}">${t}</div></div>`).join('')}
+        </div>`}
+      <div class="mt-6 space-y-1 text-sm">
+        ${(o.items || []).map((i) => `<div class="flex justify-between"><span>${esc(i.qty)} × ${esc(i.name)}</span><span>${money(o.currency, i.price * i.qty)}</span></div>`).join('')}
+        ${o.coinDiscount ? `<div class="flex justify-between text-amber-700"><span>🪙 Coins discount</span><span>− ${money(o.currency, o.coinDiscount)}</span></div>` : ''}
+        <div class="flex justify-between font-extrabold text-base pt-2 border-t border-slate-200 mt-2"><span>To pay</span><span>${money(o.currency, (o.total || 0) - (o.coinDiscount || 0))}</span></div>
+      </div>
+      ${o.coinsAwarded ? `<p class="mt-4 p-3 rounded-xl bg-amber-50 text-amber-800 text-sm">🪙 You earned ${o.coinsAwarded} BizPOS coins on this order.</p>` : ''}
+      <a href="?s=${encodeURIComponent(o.shopId)}" class="mt-6 block text-center h-11 leading-[44px] rounded-xl border border-slate-300 font-semibold">Visit the shop</a>
+    </section>`;
 }
 
 // ------------------------------------------------------------------ home
@@ -341,7 +542,10 @@ $('drawerClose').onclick = closeCart;
 
 function renderCart() {
   const lines = cartLines();
-  const saved = store('customer') || {};
+  const saved = { ...(store('customer') || {}), ...(shopper ? { name: shopper.name || undefined, phone: shopper.phone || undefined, address: shopper.address || undefined } : {}) };
+  const maxCoins = coinsOn() && user && shopper
+    ? Math.min(shopper.coins || 0, Math.floor((cartTotal() * (settings.coinsMaxPercent ?? 0) / 100) / (settings.coinValue || 1)))
+    : 0;
   const body = $('drawerBody');
   if (!lines.length) {
     body.innerHTML = '<p class="text-slate-500 text-center py-16">Your cart is empty.</p>';
@@ -372,16 +576,24 @@ function renderCart() {
       <input name="phone" required minlength="7" maxlength="20" inputmode="tel" value="${esc(saved.phone)}" placeholder="Phone / WhatsApp" class="w-full h-11 rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100">
       <textarea name="address" maxlength="300" rows="2" placeholder="Delivery address (or write 'pickup')" class="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100">${esc(saved.address)}</textarea>
       <input name="note" maxlength="300" placeholder="Note for the shop (optional)" class="w-full h-11 rounded-xl border border-slate-300 px-4 outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100">
+      ${maxCoins > 0 ? `
+        <label class="flex items-center gap-3 p-3 rounded-xl bg-amber-50 text-amber-800 text-sm font-semibold">
+          <input type="checkbox" name="useCoins" class="w-5 h-5 accent-amber-500">
+          Use ${maxCoins} coins: Rs ${maxCoins * (settings.coinValue || 1)} off (you have ${shopper.coins})
+        </label>` : ''}
+      ${coinsOn() && !user ? '<button type="button" id="coinSignIn" class="w-full text-sm text-amber-700 font-semibold">🪙 Sign in to earn BizPOS coins on this order</button>' : ''}
       <p id="orderError" class="hidden text-sm text-rose-600"></p>
       <button id="placeBtn" class="w-full h-12 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold shadow-lg shadow-indigo-500/30">Place order</button>
       <p class="text-xs text-slate-500 text-center">Pay the shop on delivery or pickup. The shop will call you to confirm.</p>
     </form>`;
   body.querySelectorAll('[data-inc]').forEach((b) => b.onclick = () => { add(b.dataset.inc, 1); renderCart(); });
   body.querySelectorAll('[data-dec]').forEach((b) => b.onclick = () => { add(b.dataset.dec, -1); renderCart(); });
-  $('orderForm').onsubmit = placeOrder;
+  $('orderForm').onsubmit = (e) => placeOrder(e, maxCoins);
+  const cs = $('coinSignIn');
+  if (cs) cs.onclick = () => { closeCart(); signInPage(); };
 }
 
-async function placeOrder(e) {
+async function placeOrder(e, maxCoins = 0) {
   e.preventDefault();
   const f = new FormData(e.target);
   const customer = { name: String(f.get('name')).trim(), phone: String(f.get('phone')).trim(), address: String(f.get('address')).trim() };
@@ -407,22 +619,43 @@ async function placeOrder(e) {
     status: 'new',
     createdAt: serverTimestamp(),
   };
+  if (user) order.customerUid = user.uid;
+  const coins = maxCoins > 0 && f.get('useCoins') ? maxCoins : 0;
+  if (coins > 0) {
+    order.coinsUsed = coins;
+    order.coinDiscount = coins * (settings.coinValue || 1);
+  }
   const btn = $('placeBtn');
   btn.disabled = true;
   btn.textContent = 'Placing order…';
   try {
-    const ref = await addDoc(collection(db, 'orders'), order);
+    const ref = doc(collection(db, 'orders'));
+    if (coins > 0) {
+      const batch = writeBatch(db);
+      batch.set(ref, order);
+      batch.update(doc(db, `shoppers/${user.uid}`), { coins: increment(-coins), lastOrder: ref.id });
+      await batch.commit();
+      await loadShopper();
+      updateAccountButton();
+    } else {
+      await setDoc(ref, order);
+    }
+    if (user && shopper && (!shopper.phone || !shopper.address)) {
+      updateDoc(doc(db, `shoppers/${user.uid}`), { name: customer.name, phone: customer.phone, address: customer.address, updatedAt: serverTimestamp() }).catch(() => {});
+    }
     cart = {};
     saveCart();
     updateCartButton();
     const wa = waNumber(shop.phone);
     const text = encodeURIComponent(`Assalam o Alaikum! I placed order ${ref.id.slice(0, 6).toUpperCase()} on ${brand}:\n` +
-      order.items.map((i) => `${i.qty} x ${i.name}`).join('\n') + `\nTotal: ${money(order.currency, order.total)}\n${customer.name}, ${customer.phone}`);
+      order.items.map((i) => `${i.qty} x ${i.name}`).join('\n') + `\nTotal: ${money(order.currency, order.total - (order.coinDiscount || 0))}\nTrack: ${location.origin}${location.pathname}?o=${ref.id}\n${customer.name}, ${customer.phone}`);
     $('drawerBody').innerHTML = `
       <div class="text-center py-10 fade-in">
         <div class="w-16 h-16 mx-auto rounded-full bg-emerald-100 text-emerald-600 grid place-items-center text-3xl">✓</div>
         <h3 class="mt-4 text-xl font-extrabold">Order placed!</h3>
         <p class="mt-2 text-slate-500">Order no. <b>${ref.id.slice(0, 6).toUpperCase()}</b>. ${esc(shop.name)} will call you to confirm.</p>
+        ${order.coinDiscount ? `<p class="mt-2 text-amber-700 text-sm">🪙 ${order.coinsUsed} coins used: Rs ${order.coinDiscount} off. Pay ${money(order.currency, order.total - order.coinDiscount)}.</p>` : ''}
+        <a href="?o=${encodeURIComponent(ref.id)}" class="inline-block mt-5 px-5 h-11 leading-[44px] rounded-xl border border-slate-300 font-semibold">Track my order</a>
         ${wa ? `<a href="https://wa.me/${wa}?text=${text}" class="inline-block mt-6 px-5 h-11 leading-[44px] rounded-xl bg-emerald-500 text-white font-semibold">Send on WhatsApp</a>` : ''}
       </div>`;
   } catch (ex) {
@@ -439,7 +672,10 @@ async function placeOrder(e) {
   try {
     await loadSettings();
     if (settings.marketplaceOpen === false) return closedPage();
-    if (shopId) await storePage(); else await home();
+    const orderId = params.get('o');
+    if (orderId) await trackPage(orderId);
+    else if (shopId) await storePage();
+    else await home();
   } catch (e) {
     console.error(e);
     emptyPage('Something went wrong', 'Please check your internet and refresh the page.');

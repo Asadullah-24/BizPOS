@@ -12,6 +12,7 @@ import 'ui/screens/auth/welcome_screen.dart';
 import 'services/drive_service.dart';
 import 'services/store_service.dart';
 import 'ui/screens/lock_screen.dart';
+import 'ui/screens/online_store_screen.dart';
 import 'ui/screens/onboarding_screen.dart';
 import 'ui/screens/shell.dart';
 import 'ui/tokens.dart';
@@ -216,10 +217,23 @@ class BizPosApp extends StatefulWidget {
 class _BizPosAppState extends State<BizPosApp> with WidgetsBindingObserver {
   DateTime? _pausedAt;
 
+  final _messengerKey = GlobalKey<ScaffoldMessengerState>();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // In-app alert for new website orders (a phone notification is also shown).
+    StoreService.instance.onNewOrder = (o) {
+      _messengerKey.currentState?.showSnackBar(SnackBar(
+        duration: const Duration(seconds: 8),
+        content: Text('New online order: ${o['customerName'] ?? ''} · ${o['currency'] ?? 'Rs'} ${((o['total'] ?? 0) as num).toStringAsFixed(0)}'),
+        action: SnackBarAction(
+          label: 'View',
+          onPressed: () => _navKey.currentState?.push(MaterialPageRoute(builder: (_) => const OrdersScreen())),
+        ),
+      ));
+    };
   }
 
   @override
@@ -282,6 +296,7 @@ class _BizPosAppState extends State<BizPosApp> with WidgetsBindingObserver {
     return MaterialApp(
       title: 'BizPOS',
       navigatorKey: _navKey,
+      scaffoldMessengerKey: _messengerKey,
       debugShowCheckedModeBanner: false,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),

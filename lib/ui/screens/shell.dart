@@ -17,6 +17,7 @@ import 'more_screen.dart';
 import 'pos_screen.dart';
 import 'products_screen.dart';
 import 'sales_screen.dart';
+import '../../services/store_service.dart';
 
 class _Dest {
   const _Dest(this.label, this.icon, this.selectedIcon, this.builder);
@@ -36,6 +37,22 @@ class Shell extends StatefulWidget {
 class _ShellState extends State<Shell> {
   int _index = 0;
   DateTime? _backAt;
+
+  void _ordersChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    StoreService.instance.addListener(_ordersChanged);
+  }
+
+  @override
+  void dispose() {
+    StoreService.instance.removeListener(_ordersChanged);
+    super.dispose();
+  }
 
   /// Back on another tab returns to the first tab; on the first tab a second
   /// back press within two seconds leaves the app.
@@ -130,13 +147,24 @@ class _ShellState extends State<Shell> {
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: [
           for (final d in dests)
-            NavigationDestination(icon: Icon(d.icon), selectedIcon: Icon(d.selectedIcon), label: tr(d.label)),
+            NavigationDestination(
+              icon: _badge(d, Icon(d.icon)),
+              selectedIcon: _badge(d, Icon(d.selectedIcon)),
+              label: tr(d.label),
+            ),
         ],
       ),
     );
     }
     return PopScope(canPop: _canLeave, onPopInvoked: _onBack, child: scaffold);
   }
+}
+
+/// Red count of new online orders on the More tab.
+Widget _badge(_Dest d, Widget icon) {
+  final n = StoreService.instance.newOrders;
+  if (d.label != 'More' || n == 0) return icon;
+  return Badge(label: Text('$n'), child: icon);
 }
 
 class _PlanBanner extends StatelessWidget {

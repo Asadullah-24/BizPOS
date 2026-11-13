@@ -67,6 +67,8 @@ class SalesService {
         'items_count': totals.itemsCount,
         'status': 'completed',
         'note': cart.note.isEmpty ? null : cart.note,
+        'source': cart.source,
+        'ref': cart.ref,
         'employee_id': userId,
       });
       final touched = <String>[];

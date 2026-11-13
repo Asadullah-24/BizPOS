@@ -26,6 +26,8 @@ class StoreAdmin extends StatelessWidget {
         const SizedBox(height: 16),
         const _BrandCard(),
         const SizedBox(height: 16),
+        const _CoinsCard(),
+        const SizedBox(height: 16),
         const _Featured(),
         const SizedBox(height: 16),
         const _Stores(),
@@ -188,6 +190,107 @@ class _BrandCard extends StatelessWidget {
           trailing: const Icon(Icons.edit_rounded),
           onTap: () => _text(context, 'Website address', custom, 'https://shop.yourdomain.com',
               (v) => StoreService.instance.saveMarketSettings(websiteUrl: v)),
+        ),
+      ]),
+    );
+  }
+}
+
+/// BizPOS coins: shoppers earn coins on delivered orders and spend them as a
+/// discount that BizPOS pays to the shop.
+class _CoinsCard extends StatelessWidget {
+  const _CoinsCard();
+
+  Future<void> _number(BuildContext context, String title, num current, String help, Future<void> Function(num) save) async {
+    final c = TextEditingController(text: '$current');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr(title)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(tr(help)),
+          const SizedBox(height: 12),
+          TextField(controller: c, keyboardType: const TextInputType.numberWithOptions(decimal: true), autofocus: true),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Cancel'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('Save'))),
+        ],
+      ),
+    );
+    final v = num.tryParse(c.text.trim());
+    if (ok == true && v != null && v >= 0 && context.mounted) await guard(context, () => save(v), success: 'Saved');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final store = StoreService.instance;
+    final theme = Theme.of(context);
+    Widget icon(IconData i, Color c) => Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(color: c.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+          child: Icon(i, color: c, size: 20),
+        );
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(children: [
+        SwitchListTile(
+          secondary: icon(Icons.toll_rounded, Tw.amber500),
+          title: Text(tr('BizPOS coins for shoppers')),
+          subtitle: Text(tr(store.coinsEnabled ? 'On: shoppers earn and spend coins' : 'Off')),
+          value: store.coinsEnabled,
+          onChanged: (v) => guard(context, () => store.saveCoins(enabled: v)),
+        ),
+        const Divider(height: 1, indent: 64),
+        ListTile(
+          leading: icon(Icons.add_circle_rounded, Tw.emerald500),
+          title: Text(tr('Coins earned per Rs 100')),
+          subtitle: Text('${store.coinsPerHundred}'),
+          trailing: const Icon(Icons.edit_rounded),
+          onTap: () => _number(context, 'Coins earned per Rs 100', store.coinsPerHundred,
+              'Given when the shop marks an order delivered.', (v) => store.saveCoins(perHundred: v)),
+        ),
+        const Divider(height: 1, indent: 64),
+        ListTile(
+          leading: icon(Icons.payments_rounded, Tw.sky400),
+          title: Text(tr('Value of 1 coin (Rs)')),
+          subtitle: Text('Rs ${store.coinValue}'),
+          trailing: const Icon(Icons.edit_rounded),
+          onTap: () => _number(context, 'Value of 1 coin (Rs)', store.coinValue, 'Discount for each coin spent.', (v) => store.saveCoins(value: v)),
+        ),
+        const Divider(height: 1, indent: 64),
+        ListTile(
+          leading: icon(Icons.percent_rounded, Tw.violet500),
+          title: Text(tr('Most of an order paid with coins')),
+          subtitle: Text('${store.coinsMaxPercent}%'),
+          trailing: const Icon(Icons.edit_rounded),
+          onTap: () => _number(context, 'Most of an order paid with coins', store.coinsMaxPercent,
+              'Percent of the order total.', (v) => store.saveCoins(maxPercent: v)),
+        ),
+        const Divider(height: 1),
+        StreamBuilder<List<Map<String, dynamic>>>(
+          stream: store.coinOrders(),
+          builder: (context, snap) {
+            final list = (snap.data ?? const []).where((o) => o['status'] != 'cancelled').toList();
+            final total = list.fold<num>(0, (a, o) => a + ((o['coinDiscount'] ?? 0) as num));
+            final byShop = <String, num>{};
+            for (final o in list.where((o) => o['status'] == 'delivered')) {
+              final k = '${o['shopName'] ?? o['shopId']}';
+              byShop[k] = (byShop[k] ?? 0) + ((o['coinDiscount'] ?? 0) as num);
+            }
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('${tr('Coin discounts given')}: Rs ${total.toStringAsFixed(0)} (${list.length} ${tr('orders')})',
+                    style: theme.textTheme.titleSmall),
+                const SizedBox(height: 4),
+                Text(tr('BizPOS pays these to the shops. Delivered orders by shop:'),
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                for (final e in byShop.entries) Text('• ${e.key}: Rs ${e.value.toStringAsFixed(0)}'),
+              ]),
+            );
+          },
         ),
       ]),
     );

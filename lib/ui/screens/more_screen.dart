@@ -9,6 +9,7 @@ import '../../core/packages.dart';
 import '../../core/permissions.dart';
 import '../brand.dart';
 import '../../services/cloud_service.dart';
+import '../../services/store_service.dart';
 import '../tokens.dart';
 import 'account_screen.dart';
 import 'accounts_screen.dart';
@@ -46,7 +47,10 @@ class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      ListenableBuilder(listenable: StoreService.instance, builder: (context, _) => _build(context));
+
+  Widget _build(BuildContext context) {
     final app = context.watch<AppState>();
     context.watch<Access>();
     final cloud = context.watch<CloudService>();
@@ -128,6 +132,12 @@ class MoreScreen extends StatelessWidget {
                       decoration: const BoxDecoration(color: Tw.amber500, shape: BoxShape.circle),
                       child: const Icon(Icons.lock_rounded, size: 11, color: Colors.white),
                     ),
+                  ),
+                if (it.label == 'Online orders' && StoreService.instance.newOrders > 0)
+                  Positioned(
+                    right: -8,
+                    top: -8,
+                    child: Badge(label: Text('${StoreService.instance.newOrders}')),
                   ),
               ]),
               const SizedBox(height: 8),

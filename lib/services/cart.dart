@@ -77,6 +77,10 @@ class Cart {
   String? customerName;
   String note = '';
 
+  /// pos | online, and the online order id for online sales.
+  String source = 'pos';
+  String? ref;
+
   /// Store credit from an exchange, applied as a payment at checkout.
   double exchangeCredit = 0;
   String? exchangeReturnId;
@@ -102,6 +106,8 @@ class Cart {
     customerId = null;
     customerName = null;
     note = '';
+    source = 'pos';
+    ref = null;
     exchangeCredit = 0;
     exchangeReturnId = null;
   }

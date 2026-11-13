@@ -86,10 +86,11 @@ class _SalesScreenState extends State<SalesScreen> {
                   return ListTile(
                     leading: CircleAvatar(
                       backgroundColor: cancelled ? Colors.grey.shade300 : null,
-                      child: Icon(cancelled ? Icons.block : Icons.receipt_long, size: 20),
+                      child: Icon(cancelled ? Icons.block : (s['source'] == 'online' ? Icons.public_rounded : Icons.receipt_long), size: 20),
                     ),
                     title: Text(s['invoice_no'] as String),
                     subtitle: Text([
+                      if (s['source'] == 'online') tr('Online store'),
                       (s['customer_name'] as String?) ?? tr('Walk-in customer'),
                       Fmt.dateTime(asInt(s['created_at'])),
                       if (!cancelled && due > 0.009) '${tr('Due')} ${Fmt.money(due)}',

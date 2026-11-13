@@ -7,7 +7,7 @@
 /// * [schemaVersion] must equal the highest key in [migrations].
 library;
 
-const int schemaVersion = 2;
+const int schemaVersion = 3;
 
 const String _common = '''
   id TEXT PRIMARY KEY,
@@ -266,5 +266,11 @@ final Map<int, List<String>> migrations = {
       notes TEXT
     )''',
     'CREATE INDEX idx_sa_stores_device ON sa_stores(device)',
+  ],
+  3: [
+    // Where a sale came from (pos | online) and the online order id.
+    "ALTER TABLE sales ADD COLUMN source TEXT NOT NULL DEFAULT 'pos'",
+    'ALTER TABLE sales ADD COLUMN ref TEXT',
+    'CREATE INDEX idx_sales_ref ON sales(ref)',
   ],
 };

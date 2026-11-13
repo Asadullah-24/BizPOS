@@ -14,6 +14,7 @@ import '../../core/i18n.dart';
 import '../../models/models.dart';
 import '../../services/cloud_service.dart';
 import '../../services/product_service.dart';
+import '../../services/online_order_service.dart';
 import '../../services/store_service.dart';
 import '../common.dart';
 import '../tokens.dart';
@@ -393,6 +394,8 @@ class _OrderCard extends StatelessWidget {
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('${order['customerName'] ?? ''}', style: theme.textTheme.titleMedium),
+                Text('#${OnlineOrderService.code(order['id'] as String)} · ${tr('Website')}${'${order['customerUid'] ?? ''}'.isEmpty ? '' : ' · ${tr('account')}'}',
+                    style: theme.textTheme.bodySmall?.copyWith(color: Tw.indigo400, fontWeight: FontWeight.w600)),
                 Text('$phone${created == 0 ? '' : ' · ${Fmt.dateTime(created)}'}',
                     style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
               ]),
@@ -421,6 +424,15 @@ class _OrderCard extends StatelessWidget {
               padding: const EdgeInsets.only(top: 4),
               child: Text('${tr('Note')}: ${order['note']}', style: theme.textTheme.bodySmall),
             ),
+          if (((order['coinDiscount'] ?? 0) as num) > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(children: [
+                const Icon(Icons.toll_rounded, size: 16, color: Tw.amber500),
+                const SizedBox(width: 4),
+                Expanded(child: Text('${tr('BizPOS coins discount (paid by BizPOS)')}: $cur ${((order['coinDiscount'] ?? 0) as num).toStringAsFixed(0)}')),
+              ]),
+            ),
           const SizedBox(height: 6),
           Row(children: [
             Text(tr('Total'), style: theme.textTheme.titleSmall),
@@ -433,19 +445,20 @@ class _OrderCard extends StatelessWidget {
               FilledButton.icon(
                 icon: const Icon(Icons.check_rounded, size: 18),
                 label: Text(tr('Confirm')),
-                onPressed: () => guard(context, () => StoreService.instance.setOrderStatus(order['id'] as String, 'confirmed')),
+                onPressed: () => _act(context, 'confirmed', () => OnlineOrderService.confirm(order)),
               ),
             if (status == 'new' || status == 'confirmed')
               OutlinedButton.icon(
                 icon: const Icon(Icons.local_shipping_rounded, size: 18),
                 label: Text(tr('Delivered')),
-                onPressed: () => guard(context, () => StoreService.instance.setOrderStatus(order['id'] as String, 'delivered')),
+                onPressed: () => _act(context, 'delivered', () => OnlineOrderService.deliver(order)),
               ),
             if (status == 'new' || status == 'confirmed')
               TextButton(
                 onPressed: () async {
-                  if (await confirm(context, 'Cancel order', 'Cancel this order?', danger: true) && context.mounted) {
-                    await guard(context, () => StoreService.instance.setOrderStatus(order['id'] as String, 'cancelled'));
+                  if (await confirm(context, 'Cancel order', 'Cancel this order? If it was confirmed, the stock goes back.', danger: true) &&
+                      context.mounted) {
+                    await _act(context, 'cancelled', () => OnlineOrderService.cancel(order));
                   }
                 },
                 child: Text(tr('Cancel order')),
@@ -459,17 +472,23 @@ class _OrderCard extends StatelessWidget {
               IconButton.filledTonal(
                 tooltip: tr('WhatsApp'),
                 icon: const Icon(Icons.chat_rounded),
-                onPressed: () {
-                  var d = phone.replaceAll(RegExp(r'[^0-9]'), '');
-                  if (d.startsWith('0')) d = '92${d.substring(1)}';
-                  launchUrl(Uri.parse('https://wa.me/$d'), mode: LaunchMode.externalApplication);
-                },
+                onPressed: () => OnlineOrderService.whatsapp(phone, OnlineOrderService.message(order, status)),
               ),
             ],
           ]),
         ]),
       ),
     );
+  }
+
+  /// Runs the status change, then offers to tell the customer on WhatsApp.
+  Future<void> _act(BuildContext context, String status, Future<void> Function() run) async {
+    final ok = await guard(context, run, success: status == 'confirmed' ? 'Order confirmed, sale saved' : null);
+    if (!ok || !context.mounted) return;
+    final phone = '${order['customerPhone'] ?? ''}';
+    if (phone.isEmpty) return;
+    final send = await confirm(context, 'Tell the customer?', 'Send the customer a WhatsApp message about this order?', ok: 'Send');
+    if (send) await OnlineOrderService.whatsapp(phone, OnlineOrderService.message(order, status));
   }
 }
 

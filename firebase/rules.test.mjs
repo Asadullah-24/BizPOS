@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { after, before, beforeEach, test } from 'node:test';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, addDoc, query, where } from 'firebase/firestore';
+import { doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, addDoc, query, where, writeBatch, increment } from 'firebase/firestore';
 
 let env;
 
@@ -153,9 +153,60 @@ test('online store: paid shops publish, website reads, customers order', async (
   await assertSucceeds(setDoc(doc(anon(), 'orders/o1'), order));
   await assertFails(setDoc(doc(anon(), 'orders/o2'), { ...order, status: 'delivered' }));
   await assertFails(setDoc(doc(anon(), 'orders/o3'), { ...order, ownerUid: 'mallory' }));
-  await assertFails(getDoc(doc(anon(), 'orders/o1')));
-  await assertFails(getDoc(doc(as('alice'), 'orders/o1')));
   await assertSucceeds(getDoc(doc(as('gina'), 'orders/o1')));
   await assertSucceeds(updateDoc(doc(as('gina'), 'orders/o1'), { status: 'confirmed' }));
   await assertFails(updateDoc(doc(as('gina'), 'orders/o1'), { total: 1 }));
+});
+
+test('shopper accounts and BizPOS coins', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, 'settings/app'), { coinsEnabled: true, coinsPerHundred: 2, coinValue: 1, coinsMaxPercent: 10 });
+    await setDoc(doc(db, 'shops/paid2'), { ownerUid: 'hana', name: 'Hana Mart', plan: 'pro', status: 'active', expiresAt: 0 });
+    await setDoc(doc(db, 'storefronts/paid2'), { shopId: 'paid2', ownerUid: 'hana', name: 'Hana Mart', published: true, adminHidden: false, paidUntil: 0 });
+  });
+  const shopper = as('sam');
+  // Shoppers start with 0 coins and cannot give themselves coins.
+  await assertFails(setDoc(doc(shopper, 'shoppers/sam'), { name: 'Sam', coins: 50 }));
+  await assertSucceeds(setDoc(doc(shopper, 'shoppers/sam'), { name: 'Sam', phone: '03001112222', coins: 0 }));
+  await assertFails(updateDoc(doc(shopper, 'shoppers/sam'), { coins: 100 }));
+  await assertSucceeds(updateDoc(doc(shopper, 'shoppers/sam'), { address: 'Lahore' }));
+
+  const base = { shopId: 'paid2', ownerUid: 'hana', shopName: 'Hana Mart', currency: 'Rs', items: [{ id: 'x', name: 'Oil', price: 1000, qty: 1 }],
+    total: 1000, customerName: 'Sam', customerPhone: '03001112222', address: '', note: '', status: 'new', customerUid: 'sam' };
+  await assertSucceeds(setDoc(doc(shopper, 'orders/s1'), base));
+  // Someone else cannot put Sam's uid on an order.
+  await assertFails(setDoc(doc(as('eve'), 'orders/s2'), base));
+  // Shopper sees their own orders.
+  await assertSucceeds(getDocs(query(collection(shopper, 'orders'), where('customerUid', '==', 'sam'))));
+
+  // Hana delivers and gives coins: at most total/100 * 2 = 20.
+  const award = async (coins, orderId = 's1') => {
+    const b = writeBatch(as('hana'));
+    b.update(doc(as('hana'), `orders/${orderId}`), { status: 'delivered', coinsAwarded: coins });
+    b.set(doc(as('hana'), `coinAwards/${orderId}`), { uid: 'sam', coins, shopId: 'paid2' });
+    b.update(doc(as('hana'), 'shoppers/sam'), { coins: increment(coins), lastAward: orderId });
+    return b.commit();
+  };
+  await assertFails(award(500));
+  await assertSucceeds(award(20));
+  // The same order cannot give coins twice.
+  await assertFails(award(20));
+
+  // Spending: 10 coins = Rs 10 off (max 10% of 1000), balance goes down in the same write.
+  const spend = (coins, discount, id) => {
+    const b = writeBatch(shopper);
+    b.set(doc(shopper, `orders/${id}`), { ...base, coinsUsed: coins, coinDiscount: discount });
+    b.update(doc(shopper, 'shoppers/sam'), { coins: increment(-coins), lastOrder: id });
+    return b.commit();
+  };
+  await assertFails(spend(10, 50, 'c1'));
+  await assertFails(spend(30, 30, 'c2'));
+  await assertSucceeds(spend(10, 10, 'c3'));
+  // Only 10 coins left: spending 15 would go negative.
+  await assertFails(spend(15, 15, 'c4'));
+  // Coins without the balance change are refused.
+  await assertFails(setDoc(doc(shopper, 'orders/c5'), { ...base, coinsUsed: 5, coinDiscount: 5 }));
+  // Anyone with the order number can track it.
+  await assertSucceeds(getDoc(doc(anon(), 'orders/c3')));
 });

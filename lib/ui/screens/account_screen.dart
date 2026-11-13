@@ -106,6 +106,13 @@ class AccountScreen extends StatelessWidget {
             },
           ),
         ),
+        ListTile(
+          leading: const Icon(Icons.add_business_outlined),
+          title: Text(tr('Join a company')),
+          subtitle: Text(tr('Enter the company code from BizPOS support')),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _joinCompany(context),
+        ),
         const SectionTitle('My devices'),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -158,5 +165,36 @@ class AccountScreen extends StatelessWidget {
         const SizedBox(height: 24),
       ]),
     );
+  }
+}
+
+Future<void> _joinCompany(BuildContext context) async {
+  final code = TextEditingController();
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(tr('Join a company')),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(tr('This phone will use the company and its plan. Your sales and products on this phone stay as they are.')),
+        const SizedBox(height: 12),
+        TextField(
+          controller: code,
+          autofocus: true,
+          autocorrect: false,
+          decoration: InputDecoration(labelText: tr('Company code'), prefixIcon: const Icon(Icons.key_rounded)),
+        ),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Cancel'))),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('Join'))),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  try {
+    final name = await CloudService.instance.joinCompany(code.text);
+    if (context.mounted) showSnack(context, '${tr('Joined')} $name');
+  } catch (e) {
+    if (context.mounted) showSnack(context, tr(authError(e)), error: true);
   }
 }

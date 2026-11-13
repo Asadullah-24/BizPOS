@@ -317,6 +317,11 @@ class CloudService extends ChangeNotifier {
       await _link(existing['id'] as String);
       return;
     }
+    final pending = await _pendingCompanyForEmail();
+    if (pending != null) {
+      await _claim(pending);
+      return;
+    }
     final ref = db.collection('shops').doc();
     await ref.set({
       'ownerUid': u.uid,
@@ -457,6 +462,101 @@ class CloudService extends ChangeNotifier {
       'createdAt': FieldValue.serverTimestamp(),
     });
     await batch.commit();
+  }
+
+  // ----------------------------------------------------------- companies
+
+  /// Super admin: creates a company (shop) for an owner who has not signed in
+  /// yet. The owner joins it with the company code (the document id), or
+  /// automatically when they sign in with Google using [ownerEmail].
+  Future<String> createCompany({
+    required String name,
+    required String ownerEmail,
+    String ownerName = '',
+    String phone = '',
+    String city = '',
+    String category = '',
+    Package? package,
+    double? amount,
+  }) async {
+    final ref = db.collection('shops').doc();
+    final data = <String, dynamic>{
+      'ownerUid': '',
+      'ownerEmail': ownerEmail.trim().toLowerCase(),
+      'ownerName': ownerName.trim(),
+      'name': name.trim(),
+      'category': category,
+      'phone': phone.trim(),
+      'city': city.trim(),
+      'currency': 'Rs',
+      'plan': 'free',
+      'status': 'active',
+      'devices': <String, dynamic>{},
+      'createdBy': user?.uid,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    await ref.set(data);
+    if (package != null) {
+      await assignSubscription({'id': ref.id, ...data}, package, amount: amount, note: 'New company');
+    }
+    return ref.id;
+  }
+
+  /// A company the super admin created for this verified email, not yet claimed.
+  Future<String?> _pendingCompanyForEmail() async {
+    final u = user;
+    final email = (u?.email ?? '').toLowerCase();
+    if (u == null || email.isEmpty || !u.emailVerified) return null;
+    try {
+      final q = await db
+          .collection('shops')
+          .where('ownerUid', isEqualTo: '')
+          .where('ownerEmail', isEqualTo: email)
+          .limit(1)
+          .get();
+      return q.docs.isEmpty ? null : q.docs.first.id;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Joins the company with [code] (given by the super admin) and links this
+  /// phone to it.
+  Future<String> joinCompany(String code) async {
+    final u = user;
+    if (u == null) throw StateError('Sign in first.');
+    final id = code.trim();
+    if (id.isEmpty) throw StateError('Enter the company code.');
+    final DocumentSnapshot<Map<String, dynamic>> snap;
+    try {
+      snap = await db.doc('shops/$id').get();
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied' || e.code == 'not-found') {
+        throw StateError('No company has this code, or it already has an owner.');
+      }
+      rethrow;
+    }
+    final d = snap.data();
+    if (!snap.exists || d == null) throw StateError('No company has this code.');
+    if ((d['ownerUid'] ?? '') != '' && d['ownerUid'] != u.uid) throw StateError('This company already has an owner.');
+    await _claim(id);
+    return '${d['name'] ?? ''}';
+  }
+
+  Future<void> _claim(String id) async {
+    final u = user!;
+    await db.doc('shops/$id').update({
+      'ownerUid': u.uid,
+      'ownerEmail': (u.email ?? '').toLowerCase(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await db.doc('users/${u.uid}').set({'shopId': id, 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+    await _shopSub?.cancel();
+    _shopSub = null;
+    shopId = null;
+    await _link(id);
+    notifyListeners();
   }
 
   Future<void> setFree(String shopId) => db.doc('shops/$shopId').update({

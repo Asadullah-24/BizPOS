@@ -14,14 +14,24 @@ import '../../../services/cloud_service.dart';
 import '../../common.dart';
 import '../auth/sign_in_screen.dart';
 import '../super_admin/super_admin_login.dart';
+import '../../../services/biometric_service.dart';
+import '../../tokens.dart';
+import 'company_form.dart';
 
 int _ms(Object? v) => v is Timestamp ? v.millisecondsSinceEpoch : (v is num ? v.toInt() : 0);
 
-/// Checks the super admin role and, when enabled, the authenticator code.
+/// Checks the super admin role and asks the super admin to prove it is them
+/// every time the panel is opened (session lasts 15 minutes): authenticator
+/// code when 2FA is on, otherwise fingerprint or the account password.
 class AdminGate extends StatefulWidget {
   const AdminGate({super.key});
 
   static int _verifiedAt = 0;
+
+  /// Ends the super admin session; the next visit asks to verify again.
+  static void lock() => _verifiedAt = 0;
+
+  static bool get fresh => nowMs() - _verifiedAt < 15 * 60 * 1000;
 
   @override
   State<AdminGate> createState() => _AdminGateState();
@@ -29,13 +39,29 @@ class AdminGate extends StatefulWidget {
 
 class _AdminGateState extends State<AdminGate> {
   final _code = TextEditingController();
+  final _password = TextEditingController();
   String? _error;
+  bool _busy = false;
+  bool _bio = false;
 
-  bool get _needsCode {
-    final a = CloudService.instance.adminDoc;
-    final fresh = nowMs() - AdminGate._verifiedAt < 30 * 60 * 1000;
-    return a['totpEnabled'] == true && (a['totpSecret'] as String?) != null && !fresh;
+  @override
+  void initState() {
+    super.initState();
+    BiometricService.available().then((v) {
+      if (mounted) setState(() => _bio = v);
+    });
   }
+
+  bool get _totpOn {
+    final a = CloudService.instance.adminDoc;
+    return a['totpEnabled'] == true && (a['totpSecret'] as String?) != null;
+  }
+
+  void _ok() => setState(() {
+        AdminGate._verifiedAt = nowMs();
+        _error = null;
+        _busy = false;
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -43,37 +69,105 @@ class _AdminGateState extends State<AdminGate> {
     if (!cloud.isAdmin) {
       return Scaffold(appBar: AppBar(), body: const EmptyState(icon: Icons.block, text: 'Super admin only.'));
     }
-    if (!_needsCode) return const AdminHome();
+    if (AdminGate.fresh) return const AdminHome();
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: Text(tr('Super admin'))),
       body: ListView(padding: const EdgeInsets.all(24), children: [
-        const Icon(Icons.security, size: 56),
-        const SizedBox(height: 12),
-        Text(tr('Enter the 6-digit code from your authenticator app.'), textAlign: TextAlign.center),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _code,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 28, letterSpacing: 8),
-          onSubmitted: (_) => _check(),
+        Center(
+          child: Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(gradient: Tw.brandGradient, borderRadius: BorderRadius.circular(22)),
+            child: const Icon(Icons.admin_panel_settings_rounded, color: Colors.white, size: 38),
+          ),
         ),
-        if (_error != null) Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-        const SizedBox(height: 12),
-        FilledButton(onPressed: _check, child: Text(tr('Continue'))),
+        const SizedBox(height: 16),
+        Text(tr('Confirm it is you'), textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall),
+        const SizedBox(height: 4),
+        Text(cloud.user?.email ?? '', textAlign: TextAlign.center, style: TextStyle(color: cs.onSurfaceVariant)),
+        const SizedBox(height: 24),
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: cs.error, fontWeight: FontWeight.w600)),
+          ),
+        if (_totpOn) ...[
+          Text(tr('Enter the 6-digit code from your authenticator app.'), textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _code,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 28, letterSpacing: 8),
+            onSubmitted: (_) => _checkTotp(),
+          ),
+          FilledButton(onPressed: _checkTotp, child: Text(tr('Continue'))),
+        ] else ...[
+          if (_bio) ...[
+            FilledButton.icon(
+              icon: const Icon(Icons.fingerprint_rounded),
+              label: Text(tr('Unlock with fingerprint')),
+              onPressed: _busy ? null : _checkBio,
+            ),
+            const SizedBox(height: 16),
+          ],
+          if (cloud.usesPassword) ...[
+            TextField(
+              controller: _password,
+              obscureText: true,
+              decoration: InputDecoration(labelText: tr('Account password'), prefixIcon: const Icon(Icons.lock_outline_rounded)),
+              onSubmitted: (_) => _checkAccount(),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(onPressed: _busy ? null : _checkAccount, child: Text(tr('Continue'))),
+          ] else
+            OutlinedButton.icon(
+              icon: const Icon(Icons.account_circle_rounded),
+              label: Text(tr('Confirm with Google')),
+              onPressed: _busy ? null : _checkAccount,
+            ),
+        ],
       ]),
     );
   }
 
-  void _check() {
+  void _checkTotp() {
     final secret = CloudService.instance.adminDoc['totpSecret'] as String;
     if (Totp.verify(secret, _code.text)) {
-      AdminGate._verifiedAt = nowMs();
-      setState(() => _error = null);
+      _ok();
     } else {
       setState(() => _error = tr('Wrong code'));
+    }
+  }
+
+  Future<void> _checkBio() async {
+    final ok = await BiometricService.authenticate(tr('Open the super admin panel'));
+    if (!mounted) return;
+    if (ok) {
+      _ok();
+    } else {
+      setState(() => _error = tr('Fingerprint not confirmed'));
+    }
+  }
+
+  Future<void> _checkAccount() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await CloudService.instance.reauthenticate(password: _password.text);
+      if (mounted) _ok();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = tr(authError(e));
+        });
+      }
     }
   }
 }
@@ -92,7 +186,28 @@ class _AdminHomeState extends State<AdminHome> {
   Widget build(BuildContext context) {
     final pages = [const _Overview(), const _Shops(), const _Packages(), const _Requests(), const _AdminSettings()];
     return Scaffold(
-      appBar: AppBar(title: Text(tr(['Overview', 'Shops', 'Packages', 'Requests', 'Settings'][_tab]))),
+      appBar: AppBar(
+        title: Text(tr(['Overview', 'Shops', 'Packages', 'Requests', 'Settings'][_tab])),
+        actions: [
+          IconButton(
+            tooltip: tr('Log out of super admin'),
+            icon: const Icon(Icons.logout_rounded),
+            onPressed: () {
+              final messenger = ScaffoldMessenger.of(context);
+              AdminGate.lock();
+              Navigator.of(context).popUntil((r) => r.isFirst);
+              messenger.showSnackBar(SnackBar(content: Text(tr('Logged out of super admin'))));
+            },
+          ),
+        ],
+      ),
+      floatingActionButton: _tab == 1
+          ? FloatingActionButton.extended(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CompanyForm())),
+              icon: const Icon(Icons.add_business_rounded),
+              label: Text(tr('New company')),
+            )
+          : null,
       body: AnimatedSwitcher(duration: const Duration(milliseconds: 200), child: KeyedSubtree(key: ValueKey(_tab), child: pages[_tab])),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
@@ -239,7 +354,9 @@ class _ShopsState extends State<_Shops> {
                           return ListTile(
                             leading: CircleAvatar(child: Text(('${s['name'] ?? '?'}').characters.first.toUpperCase())),
                             title: Text('${s['name'] ?? ''}'),
-                            subtitle: Text('${s['ownerEmail'] ?? ''} · ${s['category'] ?? ''}'),
+                            subtitle: Text((s['ownerUid'] ?? '') == ''
+                                ? '${tr('Waiting for owner')} · ${s['ownerEmail'] ?? ''}'
+                                : '${s['ownerEmail'] ?? ''} · ${s['category'] ?? ''}'),
                             trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
                               Text(p.blocked ? tr('Blocked') : (p.activeAt(t) ? p.name : tr('Free')),
                                   style: TextStyle(color: color, fontWeight: FontWeight.w600)),
@@ -336,6 +453,20 @@ class ShopAdminDetail extends StatelessWidget {
                 ]),
               ),
             ),
+            if ((d['ownerUid'] ?? '') == '')
+              Card(
+                color: Tw.amber500.withOpacity(0.12),
+                child: ListTile(
+                  leading: const Icon(Icons.hourglass_top_rounded, color: Tw.amber500),
+                  title: Text(tr('Waiting for owner')),
+                  subtitle: Text(tr('Share the company code so the owner can join.')),
+                  trailing: TextButton(
+                    onPressed: () => showCompanyCode(context, id: shopId, name: '${d['name'] ?? ''}', phone: phone),
+                    child: Text(tr('Code')),
+                  ),
+                ),
+              ),
+            if ('${d['ownerName'] ?? ''}'.isNotEmpty) KeyValue('Owner name', '${d['ownerName']}'),
             KeyValue('Owner', '${d['ownerEmail'] ?? ''}'),
             KeyValue('Phone', phone),
             KeyValue('Category', '${d['category'] ?? ''}'),

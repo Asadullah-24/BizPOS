@@ -56,8 +56,10 @@ class SuperAdminConsole extends StatelessWidget {
             tooltip: tr('Sign out'),
             icon: const Icon(Icons.logout),
             onPressed: () {
+              final messenger = ScaffoldMessenger.of(context);
               SuperAdmin.key = null;
-              Navigator.pop(context);
+              Navigator.of(context).popUntil((r) => r.isFirst);
+              messenger.showSnackBar(SnackBar(content: Text(tr('Logged out of super admin'))));
             },
           ),
         ]),

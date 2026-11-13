@@ -59,7 +59,14 @@ service cloud.firestore {
     }
 
     match /shops/{shopId} {
-      allow read: if signedIn() && (resource.data.ownerUid == request.auth.uid || isAdmin());
+      // A company the super admin created has ownerUid "" until its owner joins.
+      // Anyone holding the company code (document id) may open it to join.
+      allow get: if signedIn() && (resource.data.ownerUid == request.auth.uid || isAdmin() || resource.data.ownerUid == '');
+      // Owners find a company created for their verified email.
+      allow list: if signedIn() && (resource.data.ownerUid == request.auth.uid || isAdmin()
+        || (resource.data.ownerUid == ''
+            && request.auth.token.email_verified == true
+            && resource.data.ownerEmail == request.auth.token.email));
 
       // A new shop always starts on the free plan.
       allow create: if isAdmin() || (signedIn()
@@ -68,7 +75,13 @@ service cloud.firestore {
         && request.resource.data.status == 'active'
         && request.resource.data.keys().hasOnly(ownerShopFields()));
 
-      allow update: if isAdmin() || (signedIn()
+      allow update: if isAdmin()
+        // Joining an unclaimed company: only the owner fields change.
+        || (signedIn()
+          && resource.data.ownerUid == ''
+          && request.resource.data.ownerUid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerUid', 'ownerEmail', 'updatedAt']))
+        || (signedIn()
         && resource.data.ownerUid == request.auth.uid
         && resource.data.status != 'blocked'
         && request.resource.data.diff(resource.data).affectedKeys()

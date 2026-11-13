@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { after, before, beforeEach, test } from 'node:test';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, addDoc } from 'firebase/firestore';
+import { doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, addDoc, query, where } from 'firebase/firestore';
 
 let env;
 
@@ -97,4 +97,29 @@ test('users documents are private', async () => {
   await assertFails(setDoc(doc(as('bob'), 'users/alice'), { email: 'b@x.com' }));
   await assertSucceeds(getDoc(doc(as('boss'), 'users/alice')));
   await assertFails(deleteDoc(doc(as('alice'), 'users/alice')));
+});
+
+test('super admin creates a company; owner joins it with the code', async () => {
+  await assertSucceeds(setDoc(doc(as('boss'), 'shops/c1'), { ownerUid: '', ownerEmail: 'dave@example.com', name: 'Dave Traders', plan: 'pro', status: 'active', devices: {} }));
+  // Owners cannot create unowned or pre-paid companies themselves.
+  await assertFails(setDoc(doc(as('eve'), 'shops/c2'), { ownerUid: '', name: 'X', plan: 'free', status: 'active' }));
+  // Anyone with the code can open it and claim it, changing only owner fields.
+  await assertSucceeds(getDoc(doc(as('dave'), 'shops/c1')));
+  await assertFails(updateDoc(doc(as('dave'), 'shops/c1'), { ownerUid: 'dave', plan: 'lifetime' }));
+  await assertFails(updateDoc(doc(as('dave'), 'shops/c1'), { ownerUid: 'someone-else' }));
+  await assertSucceeds(updateDoc(doc(as('dave'), 'shops/c1'), { ownerUid: 'dave', ownerEmail: 'dave@example.com' }));
+  // Once claimed nobody else can take it or read it.
+  await assertFails(updateDoc(doc(as('eve'), 'shops/c1'), { ownerUid: 'eve' }));
+  await assertFails(getDoc(doc(as('eve'), 'shops/c1')));
+});
+
+test('verified owner finds the company made for their email', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'shops/c3'), { ownerUid: '', ownerEmail: 'frank@example.com', name: 'Frank Co', plan: 'free', status: 'active' });
+  });
+  const verified = env.authenticatedContext('frank', { email: 'frank@example.com', email_verified: true }).firestore();
+  const unverified = env.authenticatedContext('mallory', { email: 'frank@example.com', email_verified: false }).firestore();
+  const q = (db) => query(collection(db, 'shops'), where('ownerUid', '==', ''), where('ownerEmail', '==', 'frank@example.com'));
+  await assertSucceeds(getDocs(q(verified)));
+  await assertFails(getDocs(q(unverified)));
 });

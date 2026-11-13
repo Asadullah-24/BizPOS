@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+
+import '../admin/super_admin_hub.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -60,6 +62,8 @@ class SuperAdminConsole extends StatelessWidget {
           ),
         ]),
         body: ListView(padding: const EdgeInsets.all(12), children: [
+          tile(Icons.cloud, 'Online control panel', 'Packages, subscriptions, shops, password and 2FA',
+              () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SuperAdminHub()))),
           tile(Icons.add_business, 'Activate or upgrade a shop', 'Signed code or QR bound to the shop phone',
               () => Navigator.push(context, MaterialPageRoute(builder: (_) => const IssueCodeScreen(type: 'act')))),
           tile(Icons.toll, 'Give voice credits', 'One-time credit code',

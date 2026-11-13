@@ -22,7 +22,7 @@ import '../../services/printer_service.dart';
 import '../../services/product_service.dart';
 import '../common.dart';
 import 'plan_screen.dart';
-import 'super_admin/super_admin_login.dart';
+import 'admin/super_admin_hub.dart';
 import 'two_factor_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -228,8 +228,9 @@ class SettingsScreen extends StatelessWidget {
           ),
         ListTile(
           leading: const Icon(Icons.qr_code_2),
-          title: Text(tr('Offline unlock codes (super admin)')),
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SuperAdminLogin())),
+          title: Text(tr('Super admin')),
+          subtitle: Text(tr('Packages, subscriptions, shops and offline codes')),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SuperAdminHub())),
         ),
         ListTile(
           leading: const Icon(Icons.info_outline),

@@ -207,6 +207,19 @@ class _BizPosAppState extends State<BizPosApp> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  /// Android back button / back swipe. The lock screen has its own navigator
+  /// (it sits above every route), so its screens are popped here; otherwise
+  /// the normal navigator handles it.
+  @override
+  Future<bool> didPopRoute() async {
+    final lockNav = _lockNavKey.currentState;
+    if (lockNav != null && lockNav.mounted && lockNav.canPop()) {
+      lockNav.pop();
+      return true;
+    }
+    return false;
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final app = AppState.instance;

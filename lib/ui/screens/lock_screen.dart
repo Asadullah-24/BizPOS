@@ -15,7 +15,7 @@ import '../brand.dart';
 import '../common.dart';
 import '../tokens.dart';
 import 'auth/auth_widgets.dart';
-import 'super_admin/super_admin_login.dart';
+import 'admin/super_admin_hub.dart';
 
 /// Sign-in screen shown above the whole app while nobody is signed in.
 /// PIN keypad, optional authenticator code (2FA), owner PIN recovery with
@@ -345,7 +345,7 @@ class _LockScreenState extends State<LockScreen> {
             ),
             TextButton.icon(
               style: TextButton.styleFrom(foregroundColor: Tw.slate400),
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SuperAdminLogin())),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SuperAdminHub())),
               icon: const Icon(Icons.admin_panel_settings, size: 18),
               label: Text(tr('Super admin')),
             ),

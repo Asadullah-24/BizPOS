@@ -243,27 +243,47 @@ class StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final c = color ?? cs.primary;
+    final dark = theme.brightness == Brightness.dark;
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Padding(
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [c.withOpacity(dark ? 0.16 : 0.10), c.withOpacity(0.0)],
+            ),
+          ),
           padding: const EdgeInsets.all(14),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              CircleAvatar(radius: 16, backgroundColor: c.withOpacity(0.12), child: Icon(icon, size: 18, color: c)),
-              const SizedBox(width: 8),
-              Expanded(child: Text(tr(label), style: Theme.of(context).textTheme.labelLarge, overflow: TextOverflow.ellipsis)),
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(color: c.withOpacity(dark ? 0.22 : 0.14), borderRadius: BorderRadius.circular(10)),
+                child: Icon(icon, size: 19, color: c),
+              ),
+              const Spacer(),
+              if (onTap != null) Icon(Icons.arrow_outward_rounded, size: 16, color: cs.onSurfaceVariant),
             ]),
-            const SizedBox(height: 10),
+            const Spacer(),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: AlignmentDirectional.centerStart,
-              child: Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+              child: Text(value, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.4)),
             ),
-            if (sub != null) Text(sub!, style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 2),
+            Text(
+              sub == null ? tr(label) : '${tr(label)} · $sub',
+              style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w500),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ]),
         ),
       ),
@@ -278,9 +298,9 @@ class SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
         child: Row(children: [
-          Expanded(child: Text(tr(text), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600))),
+          Expanded(child: Text(tr(text), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.2))),
           if (trailing != null) trailing!,
         ]),
       );

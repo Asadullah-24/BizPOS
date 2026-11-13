@@ -6,6 +6,14 @@ import 'dart:ui' as ui;
 import 'package:bizpos/app.dart';
 import 'package:bizpos/core/access.dart';
 import 'package:bizpos/core/app_state.dart';
+import 'package:bizpos/core/business_templates.dart';
+import 'package:bizpos/core/ids.dart';
+import 'package:bizpos/models/models.dart';
+import 'package:bizpos/services/auth_service.dart';
+import 'package:bizpos/services/product_service.dart';
+import 'package:bizpos/services/setup_service.dart';
+import 'package:bizpos/ui/screens/admin/super_admin_hub.dart';
+import 'package:bizpos/ui/screens/super_admin/super_admin_login.dart';
 import 'package:bizpos/core/db.dart';
 import 'package:bizpos/core/license.dart';
 import 'package:bizpos/services/cloud_service.dart';
@@ -72,6 +80,20 @@ Widget _wrap(Widget home) => RepaintBoundary(
       ),
     );
 
+Widget _wrapApp() => RepaintBoundary(
+      key: _shot,
+      child: MultiProvider(
+        providers: [
+          ChangeNotifierProvider<AppState>.value(value: AppState.instance),
+          ChangeNotifierProvider<DriveService>.value(value: DriveService.instance),
+          ChangeNotifierProvider<LicenseService>.value(value: LicenseService.instance),
+          ChangeNotifierProvider<Access>.value(value: Access.instance),
+          ChangeNotifierProvider<CloudService>.value(value: CloudService.instance),
+        ],
+        child: const BizPosApp(),
+      ),
+    );
+
 Future<void> _save(WidgetTester t, String name) async {
   await t.runAsync(() async {
     final boundary = _shot.currentContext!.findRenderObject()! as RenderRepaintBoundary;
@@ -101,6 +123,18 @@ void main() {
     await LicenseService.instance.load();
     Access.instance.load();
     await _loadFonts();
+    await SetupService.createBusiness(
+      businessName: 'Asad General Store',
+      template: businessTemplates.firstWhere((t) => t.key == 'grocery', orElse: () => businessTemplates.first),
+      currencySymbol: 'Rs',
+      decimals: 0,
+      ownerName: 'Asad',
+      pin: '1234',
+      language: 'en',
+    );
+    for (final (name, cost, price, stock) in [('Basmati Rice 5kg', 1800.0, 2100.0, 24.0), ('Sugar 1kg', 140.0, 160.0, 2.0), ('Cooking Oil 1L', 520.0, 580.0, 1.0)]) {
+      await ProductService.save(Product(id: newId(), name: name, costPrice: cost, salePrice: price, lowStock: 5), isNew: true, openingStock: stock);
+    }
   });
 
   testWidgets('screenshots: welcome', (t) async {
@@ -133,6 +167,33 @@ void main() {
     await t.pumpWidget(_wrap(const LockScreen()));
     await _settle(t);
     await _save(t, '4-lock');
+  });
+
+  testWidgets('screenshots: super admin hub and offline login', (t) async {
+    _size(t, const Size(412, 915));
+    await t.pumpWidget(_wrap(const SuperAdminHub()));
+    await _settle(t);
+    await _save(t, '6-super-admin-hub');
+    await t.pumpWidget(_wrap(const SuperAdminLogin()));
+    await _settle(t);
+    await _save(t, '7-offline-codes-login');
+  });
+
+  testWidgets('screenshots: main app tabs', (t) async {
+    _size(t, const Size(412, 915));
+    final owner = await t.runAsync<Employee?>(() => AuthService.login('1234'));
+    await AppState.instance.login(owner!);
+    await t.pumpWidget(_wrapApp());
+    await _settle(t);
+    await _save(t, '10-dashboard');
+    for (final (tab, file) in [('Sell', '11-sell'), ('Products', '12-products'), ('Sales', '13-sales'), ('More', '14-more')]) {
+      await t.tap(find.text(tab).last);
+      await _settle(t, 15);
+      await _save(t, file);
+    }
+    await t.tap(find.text('Settings').first);
+    await _settle(t, 15);
+    await _save(t, '15-settings');
   });
 
   testWidgets('screenshots: tablet welcome', (t) async {

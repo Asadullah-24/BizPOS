@@ -35,6 +35,26 @@ class Shell extends StatefulWidget {
 
 class _ShellState extends State<Shell> {
   int _index = 0;
+  DateTime? _backAt;
+
+  /// Back on another tab returns to the first tab; on the first tab a second
+  /// back press within two seconds leaves the app.
+  bool get _canLeave => _index == 0 && _backAt != null && DateTime.now().difference(_backAt!) < const Duration(seconds: 2);
+
+  void _onBack(bool didPop) {
+    if (didPop) return;
+    if (_index != 0) {
+      setState(() => _index = 0);
+      return;
+    }
+    setState(() => _backAt = DateTime.now());
+    Future.delayed(const Duration(milliseconds: 2100), () {
+      if (mounted) setState(() {});
+    });
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(tr('Press back again to exit')), duration: const Duration(seconds: 2)));
+  }
 
   List<_Dest> _dests(AppState app) => [
         if (app.can(Perm.dashboard))
@@ -79,8 +99,9 @@ class _ShellState extends State<Shell> {
       const Material(child: SafeArea(top: false, bottom: false, child: VendorFooter())),
     ]);
 
+    Widget scaffold;
     if (isWide(context) && dests.length >= 2) {
-      return Scaffold(
+      scaffold = Scaffold(
         body: Row(children: [
           NavigationRail(
             selectedIndex: _index,
@@ -99,9 +120,10 @@ class _ShellState extends State<Shell> {
           Expanded(child: body),
         ]),
       );
-    }
-    if (dests.length < 2) return Scaffold(body: body);
-    return Scaffold(
+    } else if (dests.length < 2) {
+      scaffold = Scaffold(body: body);
+    } else {
+      scaffold = Scaffold(
       body: body,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
@@ -112,6 +134,8 @@ class _ShellState extends State<Shell> {
         ],
       ),
     );
+    }
+    return PopScope(canPop: _canLeave, onPopInvoked: _onBack, child: scaffold);
   }
 }
 

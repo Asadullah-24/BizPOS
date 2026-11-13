@@ -18,7 +18,12 @@ import '../../services/report_service.dart';
 import '../../services/sales_service.dart';
 import '../charts.dart';
 import '../common.dart';
+import '../tokens.dart';
+import 'expenses_screen.dart';
 import 'inventory_screen.dart';
+import 'parties_screen.dart';
+import 'pos_screen.dart';
+import 'product_form.dart';
 import 'reports_screen.dart';
 import 'sale_detail_screen.dart';
 
@@ -55,46 +60,64 @@ class DashboardScreen extends StatelessWidget {
     final app = context.watch<AppState>();
     final drive = context.watch<DriveService>();
     final seeProfit = app.can(Perm.reports);
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final hasLogo = (app.settings['logo'] ?? '').isNotEmpty && Access.instance.has(Feature.branding);
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12 ? 'Good morning' : (hour < 17 ? 'Good afternoon' : 'Good evening');
     return Scaffold(
       appBar: AppBar(
-        leading: (app.settings['logo'] ?? '').isEmpty || !Access.instance.has(Feature.branding)
-            ? null
-            : Padding(
-                padding: const EdgeInsets.all(8),
-                child: ClipOval(child: ProductThumb(image: app.settings['logo'], name: app.businessName, size: 40)),
+        toolbarHeight: 68,
+        titleSpacing: 16,
+        title: Row(children: [
+          if (hasLogo)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 12),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: ProductThumb(image: app.settings['logo'], name: app.businessName, size: 42),
               ),
-        title: Text(app.businessName),
+            )
+          else
+            Container(
+              width: 42,
+              height: 42,
+              margin: const EdgeInsetsDirectional.only(end: 12),
+              decoration: BoxDecoration(gradient: Tw.brandGradient, borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.storefront_rounded, color: Colors.white, size: 22),
+            ),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('${tr(greeting)}, ${app.user?.name ?? ''}',
+                  style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant), overflow: TextOverflow.ellipsis),
+              Text(app.businessName, style: theme.textTheme.titleLarge, overflow: TextOverflow.ellipsis),
+            ]),
+          ),
+        ]),
         actions: [
           if (drive.enabled)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Icon(
                 drive.busy ? Icons.cloud_sync : (drive.hasPendingChanges ? Icons.cloud_upload_outlined : Icons.cloud_done),
-                color: drive.lastError != null ? Theme.of(context).colorScheme.error : null,
+                color: drive.lastError != null ? cs.error : Tw.emerald400,
               ),
             ),
-          IconButton(tooltip: tr('Lock'), icon: const Icon(Icons.lock_outline), onPressed: app.lock),
+          IconButton(tooltip: tr('Lock'), icon: const Icon(Icons.lock_outline_rounded), onPressed: app.lock),
+          const SizedBox(width: 4),
         ],
       ),
       body: LiveData<_DashData>(
         load: _load,
         builder: (context, d) {
-          final cols = MediaQuery.sizeOf(context).width > 900 ? 4 : 2;
+          final wide = MediaQuery.sizeOf(context).width > 900;
+          final cols = wide ? 4 : 2;
           final cards = <Widget>[
-            StatCard(label: 'Today', value: Fmt.money(d.today.sales), icon: Icons.today, sub: '${d.today.salesCount} ${tr('sales')}'),
-            if (seeProfit)
-              StatCard(
-                label: 'Profit today',
-                value: Fmt.money(d.today.netProfit),
-                icon: Icons.trending_up,
-                color: d.today.netProfit < 0 ? Colors.red : Colors.green.shade700,
-              ),
-            if (app.hasModule(Mod.expenses))
-              StatCard(label: 'Expenses today', value: Fmt.money(d.today.expenses), icon: Icons.money_off, color: Colors.orange.shade800),
             StatCard(
               label: 'This month',
               value: Fmt.money(d.month.netSales),
-              icon: Icons.calendar_month,
+              icon: Icons.calendar_month_rounded,
+              color: Tw.indigo500,
               sub: '${d.month.salesCount} ${tr('sales')}',
               onTap: seeProfit
                   ? () => openFeature(context, Feature.reports,
@@ -105,88 +128,98 @@ class DashboardScreen extends StatelessWidget {
               StatCard(
                 label: 'Net profit (month)',
                 value: Fmt.money(d.month.netProfit),
-                icon: Icons.account_balance_wallet,
-                color: d.month.netProfit < 0 ? Colors.red : Colors.green.shade700,
+                icon: Icons.trending_up_rounded,
+                color: d.month.netProfit < 0 ? Tw.rose500 : Tw.emerald500,
               ),
             if (app.hasModule(Mod.customers))
-              StatCard(label: 'Receivables', value: Fmt.money(d.receivable), icon: Icons.call_received, color: Colors.indigo),
+              StatCard(label: 'Receivables', value: Fmt.money(d.receivable), icon: Icons.call_received_rounded, color: Tw.sky400),
             if (app.hasModule(Mod.suppliers))
-              StatCard(label: 'Payables', value: Fmt.money(d.payable), icon: Icons.call_made, color: Colors.brown),
+              StatCard(label: 'Payables', value: Fmt.money(d.payable), icon: Icons.call_made_rounded, color: Tw.violet500),
             if (app.hasModule(Mod.inventory))
               StatCard(
                 label: 'Low stock',
                 value: '${d.low.length}${d.low.length >= 6 ? '+' : ''}',
-                icon: Icons.warning_amber,
-                color: d.low.isEmpty ? Colors.green.shade700 : Colors.red,
+                icon: Icons.inventory_2_rounded,
+                color: d.low.isEmpty ? Tw.emerald500 : Tw.amber500,
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InventoryScreen(lowOnly: true))),
               ),
+            if (app.hasModule(Mod.expenses))
+              StatCard(label: 'Expenses (month)', value: Fmt.money(d.month.expenses), icon: Icons.receipt_rounded, color: Tw.rose400),
           ];
           return RefreshIndicator(
             onRefresh: () async => Db.instance.refresh(),
-            child: ListView(padding: const EdgeInsets.only(bottom: 24), children: [
-              if (app.hasModule(Mod.inventory) && d.low.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                  child: MaterialBanner(
-                    content: Text('${d.low.length >= 6 ? '6+' : d.low.length} ${tr('items are low on stock')}'),
-                    leading: const Icon(Icons.warning_amber, color: Colors.red),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InventoryScreen(lowOnly: true))),
-                        child: Text(tr('View')),
+            child: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
+              _TodayHero(today: d.today, seeProfit: seeProfit, showExpenses: app.hasModule(Mod.expenses)),
+              const SizedBox(height: 16),
+              _QuickActions(app: app),
+              const SizedBox(height: 8),
+              GridView.count(
+                crossAxisCount: cols,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(top: 8),
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: wide ? 1.7 : 1.45,
+                children: cards,
+              ),
+              const SizedBox(height: 16),
+              _Panel(
+                title: tr('Last 7 days'),
+                trailing: ChartLegend(showProfit: seeProfit),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 8, 8, 0),
+                  child: SalesBarChart(points: d.week.series, showProfit: seeProfit),
+                ),
+              ),
+              if (d.low.isNotEmpty && app.hasModule(Mod.inventory)) ...[
+                const SizedBox(height: 16),
+                _Panel(
+                  title: tr('Low stock'),
+                  trailing: TextButton(
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InventoryScreen(lowOnly: true))),
+                    child: Text(tr('View all')),
+                  ),
+                  child: Column(children: [
+                    for (final p in d.low)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: ProductThumb(image: p.image, name: p.name, size: 40),
+                        title: Text(p.displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        trailing: _Pill(text: '${Fmt.qty(p.stock)} ${p.unit ?? ''}'.trim(), color: Tw.amber500),
                       ),
-                    ],
-                  ),
+                  ]),
                 ),
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: GridView.count(
-                  crossAxisCount: cols,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  childAspectRatio: 1.55,
-                  children: cards,
-                ),
-              ),
-              SectionTitle('Last 7 days', trailing: ChartLegend(showProfit: seeProfit)),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
-                    child: SalesBarChart(points: d.week.series, showProfit: seeProfit),
-                  ),
-                ),
-              ),
-              if (d.low.isNotEmpty) ...[
-                const SectionTitle('Low stock'),
-                for (final p in d.low)
-                  ListTile(
-                    leading: ProductThumb(image: p.image, name: p.name, size: 40),
-                    title: Text(p.displayName),
-                    trailing: Text('${Fmt.qty(p.stock)} ${p.unit ?? ''}',
-                        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
-                  ),
               ],
               if (d.recent.isNotEmpty && app.can(Perm.salesView)) ...[
-                const SectionTitle('Recent sales'),
-                for (final s in d.recent)
-                  ListTile(
-                    leading: const Icon(Icons.receipt_long),
-                    title: Text(s['invoice_no'] as String),
-                    subtitle: Text('${s['customer_name'] ?? tr('Walk-in customer')} · ${Fmt.time(asInt(s['created_at']))}'),
-                    trailing: Text(
-                      Fmt.money(asDouble(s['total'])),
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        decoration: s['status'] == 'cancelled' ? TextDecoration.lineThrough : null,
+                const SizedBox(height: 16),
+                _Panel(
+                  title: tr('Recent sales'),
+                  child: Column(children: [
+                    for (final s in d.recent)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(color: Tw.indigo500.withOpacity(0.14), borderRadius: BorderRadius.circular(12)),
+                          child: const Icon(Icons.receipt_long_rounded, color: Tw.indigo400, size: 20),
+                        ),
+                        title: Text(s['invoice_no'] as String, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: Text('${s['customer_name'] ?? tr('Walk-in customer')} · ${Fmt.time(asInt(s['created_at']))}',
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        trailing: Text(
+                          Fmt.money(asDouble(s['total'])),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            decoration: s['status'] == 'cancelled' ? TextDecoration.lineThrough : null,
+                          ),
+                        ),
+                        onTap: () => Navigator.push(
+                            context, MaterialPageRoute(builder: (_) => SaleDetailScreen(saleId: s['id'] as String))),
                       ),
-                    ),
-                    onTap: () => Navigator.push(
-                        context, MaterialPageRoute(builder: (_) => SaleDetailScreen(saleId: s['id'] as String))),
-                  ),
+                  ]),
+                ),
               ],
             ]),
           );
@@ -194,4 +227,181 @@ class DashboardScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Gradient card with today's sales, profit and expenses.
+class _TodayHero extends StatelessWidget {
+  const _TodayHero({required this.today, required this.seeProfit, required this.showExpenses});
+  final ReportData today;
+  final bool seeProfit;
+  final bool showExpenses;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget mini(String label, String value, IconData icon) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withOpacity(0.14)),
+            ),
+            child: Row(children: [
+              Icon(icon, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(tr(label), style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 11.5), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+                  ),
+                ]),
+              ),
+            ]),
+          ),
+        );
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Tw.indigo600, Tw.violet600, Color(0xFF9333EA)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: Tw.glow(Tw.indigo600, opacity: 0.3),
+      ),
+      child: Stack(clipBehavior: Clip.none, children: [
+        Positioned(
+          right: -30,
+          top: -40,
+          child: Container(
+            width: 140,
+            height: 140,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.07)),
+          ),
+        ),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: Colors.white.withOpacity(0.16), borderRadius: BorderRadius.circular(999)),
+              child: Text(tr('Today'), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+            const Spacer(),
+            Text('${today.salesCount} ${tr('sales')}', style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13)),
+          ]),
+          const SizedBox(height: 14),
+          Text(tr("Today's sales"), style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13)),
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(Fmt.money(today.sales),
+                style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: -1)),
+          ),
+          if (seeProfit || showExpenses) ...[
+            const SizedBox(height: 16),
+            Row(children: [
+              if (seeProfit) mini('Profit', Fmt.money(today.netProfit), Icons.trending_up_rounded),
+              if (seeProfit && showExpenses) const SizedBox(width: 10),
+              if (showExpenses) mini('Expenses', Fmt.money(today.expenses), Icons.receipt_rounded),
+            ]),
+          ],
+        ]),
+      ]),
+    );
+  }
+}
+
+/// Round shortcut buttons under the hero card.
+class _QuickActions extends StatelessWidget {
+  const _QuickActions({required this.app});
+  final AppState app;
+
+  @override
+  Widget build(BuildContext context) {
+    void go(Widget page) => Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+    final actions = <(String, IconData, Color, VoidCallback)>[
+      if (app.allowed(Mod.pos, Perm.sell)) ('New sale', Icons.point_of_sale_rounded, Tw.indigo500, () => go(const PosScreen())),
+      if (app.allowed(Mod.products, Perm.products)) ('Add product', Icons.add_box_rounded, Tw.emerald500, () => go(const ProductForm())),
+      if (app.allowed(Mod.expenses, Perm.expenses)) ('Expense', Icons.receipt_rounded, Tw.rose500, () => showExpenseForm(context)),
+      if (app.allowed(Mod.inventory, Perm.inventory) || app.allowed(Mod.inventory, Perm.products))
+        ('Stock', Icons.warehouse_rounded, Tw.amber500, () => go(const InventoryScreen())),
+      if (app.allowed(Mod.customers, Perm.customers))
+        ('Customers', Icons.people_alt_rounded, Tw.sky400, () => go(const PartiesScreen(kind: 'customer'))),
+    ];
+    if (actions.isEmpty) return const SizedBox.shrink();
+    final cs = Theme.of(context).colorScheme;
+    return Row(children: [
+      for (final a in actions.take(5))
+        Expanded(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: a.$4,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Column(children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: a.$3.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: a.$3.withOpacity(0.28)),
+                  ),
+                  child: Icon(a.$2, color: a.$3, size: 24),
+                ),
+                const SizedBox(height: 6),
+                Text(tr(a.$1),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: cs.onSurface)),
+              ]),
+            ),
+          ),
+        ),
+    ]);
+  }
+}
+
+/// Card with a title row, used for the chart and lists.
+class _Panel extends StatelessWidget {
+  const _Panel({required this.title, required this.child, this.trailing});
+  final String title;
+  final Widget child;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(child: Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700))),
+            if (trailing != null) trailing!,
+          ]),
+          const SizedBox(height: 4),
+          child,
+        ]),
+      ),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({required this.text, required this.color});
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(999)),
+        child: Text(text, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12.5)),
+      );
 }

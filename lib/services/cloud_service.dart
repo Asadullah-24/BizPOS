@@ -159,6 +159,21 @@ class CloudService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Reads admins/{uid} again (after the super admin document is created).
+  Future<bool> reloadAdmin() async {
+    final u = user;
+    if (u == null) return false;
+    try {
+      final a = await db.doc('admins/${u.uid}').get(const GetOptions(source: Source.server));
+      isAdmin = a.exists && a.data()?['role'] == 'super';
+      adminDoc = a.data() ?? {};
+    } catch (e) {
+      lastError = authError(e);
+    }
+    notifyListeners();
+    return isAdmin;
+  }
+
   Future<Map<String, dynamic>> _ensureUserDoc(User u, {String? name}) async {
     final ref = db.doc('users/${u.uid}');
     final snap = await ref.get();

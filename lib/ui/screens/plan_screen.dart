@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -8,7 +7,6 @@ import '../../core/format.dart';
 import '../../core/i18n.dart';
 import '../../core/license.dart';
 import '../../core/packages.dart';
-import '../../services/ads_service.dart';
 import '../../services/alert_service.dart';
 import '../../services/cloud_service.dart';
 import '../common.dart';
@@ -25,23 +23,12 @@ class PlanScreen extends StatefulWidget {
 }
 
 class _PlanScreenState extends State<PlanScreen> {
-  bool _busy = false;
-
   Future<void> _apply(String? code) async {
     if (code == null || code.trim().isEmpty) return;
     await guard(context, () async {
       final msg = await LicenseService.instance.apply(code);
       if (mounted) showSnack(context, msg);
     });
-  }
-
-  Future<void> _unlock(String feature) async {
-    setState(() => _busy = true);
-    var earned = false;
-    await guard(context, () async => earned = await AdsService.unlock(feature));
-    if (!mounted) return;
-    setState(() => _busy = false);
-    showSnack(context, earned ? tr('Unlocked for 24 hours') : tr('Watch the whole ad to unlock.'), error: !earned);
   }
 
   Future<void> _request(Package p) async {
@@ -59,7 +46,7 @@ class _PlanScreenState extends State<PlanScreen> {
     final lic = LicenseService.instance;
     final cs = Theme.of(context).colorScheme;
     final status = !access.isPaid
-        ? tr('Free with ads')
+        ? tr('Free')
         : (access.expiresAt == 0 ? tr('Lifetime') : '${tr('Valid until')} ${Fmt.date(access.expiresAt)} (${access.daysLeft} ${tr('days left')})');
     return Scaffold(
       appBar: AppBar(title: Text(tr('Plan and upgrades'))),
@@ -81,16 +68,6 @@ class _PlanScreenState extends State<PlanScreen> {
             dense: true,
             leading: Icon(access.has(f) ? Icons.check_circle : Icons.lock, color: access.has(f) ? Colors.green : cs.outline),
             title: Text(tr(Feature.labels[f]!)),
-            subtitle: !access.paidHas(f) && access.unlockedUntil(f) > lic.now()
-                ? Text('${tr('Unlocked until')} ${DateFormat('dd MMM, hh:mm a').format(DateTime.fromMillisecondsSinceEpoch(access.unlockedUntil(f)))}')
-                : null,
-            trailing: access.has(f) || !Feature.adUnlockable.contains(f)
-                ? null
-                : TextButton.icon(
-                    onPressed: _busy ? null : () => _unlock(f),
-                    icon: const Icon(Icons.ondemand_video, size: 18),
-                    label: Text(tr('24h')),
-                  ),
           ),
         const SectionTitle('Plans'),
         if (!cloud.configured || !cloud.ready)
@@ -129,7 +106,6 @@ class _PlanScreenState extends State<PlanScreen> {
                         ]),
                         if (p.description.isNotEmpty) Text(p.description),
                         for (final f in p.features) Text('• ${tr(Feature.labels[f] ?? f)}'),
-                        if (p.adFree) Text('• ${tr('No ads')}'),
                         Text('• ${p.days == 0 ? tr('Lifetime') : '${p.days} ${tr('days')}'}'),
                         const SizedBox(height: 8),
                         Align(

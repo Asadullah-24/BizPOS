@@ -8,7 +8,6 @@ import 'package:bizpos/core/db.dart';
 import 'package:bizpos/core/ids.dart';
 import 'package:bizpos/core/license.dart';
 import 'package:bizpos/models/models.dart';
-import 'package:bizpos/services/ads_service.dart';
 import 'package:bizpos/services/auth_service.dart';
 import 'package:bizpos/services/cloud_service.dart';
 import 'package:bizpos/services/drive_service.dart';
@@ -61,7 +60,6 @@ Future<void> openFromMore(WidgetTester t, String label) async {
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
-    AdsService.disabled = true;
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
     SharedPreferences.setMockInitialValues({});

@@ -90,7 +90,7 @@ class AccountScreen extends StatelessWidget {
           title: Text(tr(access.planName)),
           subtitle: Text(access.isPaid
               ? (access.expiresAt == 0 ? tr('Lifetime') : '${tr('Valid until')} ${Fmt.date(access.expiresAt)}')
-              : tr('Free with ads')),
+              : tr('Free')),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanScreen())),
         ),

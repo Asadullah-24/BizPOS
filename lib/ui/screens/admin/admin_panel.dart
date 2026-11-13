@@ -445,7 +445,7 @@ class _Packages extends StatelessWidget {
               ListTile(
                 leading: Icon(p.active ? Icons.inventory_2 : Icons.visibility_off),
                 title: Text(p.name),
-                subtitle: Text('${p.price} · ${p.days == 0 ? tr('Lifetime') : '${p.days} ${tr('days')}'} · ${p.features.length} ${tr('features')}${p.adFree ? ' · ${tr('No ads')}' : ''}'),
+                subtitle: Text('${p.price} · ${p.days == 0 ? tr('Lifetime') : '${p.days} ${tr('days')}'} · ${p.features.length} ${tr('features')}'),
                 trailing: const Icon(Icons.edit_outlined),
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PackageEditor(package: p, existing: true))),
               ),
@@ -474,7 +474,6 @@ class _PackageEditorState extends State<PackageEditor> {
   late final _sort = TextEditingController(text: '${p.sort}');
   late final _desc = TextEditingController(text: p.description);
   late final Set<String> _features = {...p.features};
-  late bool _adFree = p.adFree;
   late bool _active = p.active;
 
   Future<void> _save() async {
@@ -487,7 +486,6 @@ class _PackageEditorState extends State<PackageEditor> {
       ..sort = int.tryParse(_sort.text.trim()) ?? 0
       ..description = _desc.text.trim()
       ..features = _features.toList()
-      ..adFree = _adFree
       ..active = _active;
     final ok = await guard(context, () => CloudService.instance.savePackage(p), success: 'Saved');
     if (ok && mounted) Navigator.pop(context);
@@ -530,7 +528,6 @@ class _PackageEditorState extends State<PackageEditor> {
             value: _features.contains(f),
             onChanged: (v) => setState(() => v == true ? _features.add(f) : _features.remove(f)),
           ),
-        SwitchListTile(title: Text(tr('No ads')), value: _adFree, onChanged: (v) => setState(() => _adFree = v)),
         SwitchListTile(title: Text(tr('Visible to shops')), value: _active, onChanged: (v) => setState(() => _active = v)),
         const SizedBox(height: 16),
         FilledButton(onPressed: _save, child: Text(tr('Save'))),

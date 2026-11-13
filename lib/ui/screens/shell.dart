@@ -6,7 +6,6 @@ import '../../core/business_templates.dart';
 import '../../core/i18n.dart';
 import '../../core/access.dart';
 import '../../core/license.dart';
-import '../../services/ads_service.dart';
 import '../../services/cloud_service.dart';
 import '../../core/packages.dart';
 import '../brand.dart';
@@ -74,11 +73,9 @@ class _ShellState extends State<Shell> {
     } else {
       banner = null;
     }
-    final onSell = dests[_index].label == 'Sell';
     final body = Column(children: [
       if (banner != null) banner,
       Expanded(child: page),
-      if (!access.adFree && !onSell) const AdBanner(),
       const Material(child: SafeArea(top: false, bottom: false, child: VendorFooter())),
     ]);
 

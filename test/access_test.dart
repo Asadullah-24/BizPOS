@@ -23,24 +23,13 @@ void main() {
     access.load();
   });
 
-  test('free shop has core only and shows ads', () {
+  test('free shop has core only', () {
     access.setCloud(CloudPlan());
     expect(access.isPaid, isFalse);
-    expect(access.adFree, isFalse);
     for (final f in Feature.all) {
       expect(access.has(f), isFalse, reason: f);
     }
     expect(access.planName, 'Free');
-  });
-
-  test('a rewarded ad unlocks one feature for 24 hours', () {
-    access.grantUnlock(Feature.reports);
-    expect(access.has(Feature.reports), isTrue);
-    expect(access.paidHas(Feature.reports), isFalse);
-    expect(access.has(Feature.voice), isFalse);
-    final until = access.unlockedUntil(Feature.reports);
-    expect(until - nowMs(), closeTo(const Duration(hours: 24).inMilliseconds, 60000));
-    expect(access.adFree, isFalse);
   });
 
   test('online subscription grants its features until it expires', () {
@@ -54,14 +43,12 @@ void main() {
     }));
     expect(access.isPaid, isTrue);
     expect(access.has(Feature.voice), isTrue);
-    expect(access.adFree, isTrue);
     expect(access.planName, 'Pro monthly');
     expect(access.daysLeft, inInclusiveRange(9, 10));
 
     access.setCloud(CloudPlan.fromShop({'plan': 'pro-monthly', 'features': ['voice'], 'adFree': true, 'expiresAt': nowMs() - 1}));
     expect(access.isPaid, isFalse);
     expect(access.has(Feature.voice), isFalse);
-    expect(access.adFree, isFalse);
   });
 
   test('blocked shop loses paid features', () {
@@ -88,7 +75,7 @@ void main() {
 
   test('default packages are valid', () {
     final p = Package.defaults();
-    expect(p.length, 4);
+    expect(p.length, 5);
     for (final x in p) {
       expect(Package.fromMap(x.id, x.toMap()).toMap(), x.toMap());
       expect(x.features.every(Feature.all.contains), isTrue);

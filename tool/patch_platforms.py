@@ -94,9 +94,6 @@ ANDROID_PERMISSIONS = [
     '<uses-feature android:name="android.hardware.microphone" android:required="false"/>',
 ]
 
-# Google's public AdMob test app id. Replace with your own before publishing.
-ADMOB_ANDROID_APP_ID = "ca-app-pub-3940256099942544~3347511713"
-
 ANDROID_QUERIES = """    <queries>
         <intent>
             <action android:name="android.speech.RecognitionService"/>
@@ -122,12 +119,8 @@ def manifest(s: str) -> str:
         name = re.search(r'android:name="([^"]+)"', perm).group(1)
         if f'"{name}"' not in s:
             s = s.replace("<application", perm + "\n    <application", 1)
-    if "com.google.android.gms.ads.APPLICATION_ID" not in s:
-        meta = (
-            '        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID"\n'
-            f'            android:value="{ADMOB_ANDROID_APP_ID}"/>\n'
-        )
-        s = s.replace("</application>", meta + "    </application>", 1)
+    # Ads were removed from BizPOS: drop the old AdMob app id if present.
+    s = re.sub(r'\s*<meta-data android:name="com\.google\.android\.gms\.ads\.APPLICATION_ID"\s*android:value="[^"]*"\s*/>', "", s)
     if "android.speech.RecognitionService" not in s:
         if "<queries>" in s:
             s = s.replace("<queries>", ANDROID_QUERIES.strip().replace("</queries>", "").replace("<queries>", "<queries>", 1), 1)
@@ -142,8 +135,6 @@ IOS_KEYS = {
     "NSCameraUsageDescription": "The camera is used to scan product barcodes and take product photos.",
     "NSMicrophoneUsageDescription": "The microphone is used for voice stock updates.",
     "NSSpeechRecognitionUsageDescription": "Speech recognition turns voice commands into stock updates.",
-    # Google's public AdMob test app id. Replace with your own before publishing.
-    "GADApplicationIdentifier": "ca-app-pub-3940256099942544~1458002511",
     "NSPhotoLibraryUsageDescription": "Photos are used as product images.",
     "NSBluetoothAlwaysUsageDescription": "Bluetooth is used to print receipts on thermal printers.",
     "NSBluetoothPeripheralUsageDescription": "Bluetooth is used to print receipts on thermal printers.",
@@ -155,6 +146,7 @@ def info_plist(s: str) -> str:
     for key, value in IOS_KEYS.items():
         if key not in s:
             additions += f"\t<key>{key}</key>\n\t<string>{value}</string>\n"
+    s = re.sub(r"\s*<key>GADApplicationIdentifier</key>\s*<string>[^<]*</string>", "", s)
     if "LSApplicationQueriesSchemes" not in s:
         additions += (
             "\t<key>LSApplicationQueriesSchemes</key>\n\t<array>\n"

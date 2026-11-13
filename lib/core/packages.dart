@@ -2,9 +2,9 @@
 ///
 /// Free (no account or subscription needed): POS, products, stock, categories,
 /// customers, sales, returns, purchases, suppliers, expenses, accounts, backup,
-/// barcode scanning. Free users see ads.
-/// Paid features come from a subscription the super admin assigns online, an
-/// offline signed code, or a rewarded ad that unlocks one feature for 24 hours.
+/// barcode scanning. No ads anywhere.
+/// Paid features come from a subscription the super admin assigns online, or an
+/// offline signed code.
 library;
 
 class Feature {
@@ -39,9 +39,6 @@ class Feature {
     marketplace: 'Online marketplace listing (coming soon)',
   };
 
-  /// Features a rewarded ad can unlock for a day.
-  static const adUnlockable = [reports, employees, branding, alerts, reminders, voice];
-
   static List<String> get all => labels.keys.toList();
 }
 
@@ -65,13 +62,13 @@ class Plan {
 }
 
 class Plans {
-  static const free = Plan(key: 'free', name: 'Free', price: 'Free', description: 'Core POS with ads.');
+  static const free = Plan(key: 'free', name: 'Free', price: 'Free', description: 'Core POS, free forever.');
 
   static const trial = Plan(
     key: 'trial',
     name: 'Free trial',
     price: 'Free for 14 days',
-    description: 'Every paid feature for 14 days, no ads.',
+    description: 'Every paid feature for 14 days.',
     features: [Feature.reports, Feature.employees, Feature.branding, Feature.alerts, Feature.reminders, Feature.voice],
   );
 
@@ -79,7 +76,7 @@ class Plans {
     key: 'basic',
     name: 'Basic',
     price: 'Rs 15,000 one time',
-    description: 'No ads, full reports, employees and your logo. Lifetime.',
+    description: 'Full reports, employees and your logo. Lifetime.',
     features: [Feature.reports, Feature.employees, Feature.branding],
   );
 
@@ -87,7 +84,7 @@ class Plans {
     key: 'pro',
     name: 'Pro',
     price: 'Rs 1,000 / month or Rs 10,000 / year',
-    description: 'Everything: no ads, reports, employees, logo, alerts, reminders, voice, marketplace.',
+    description: 'Everything: reports, employees, logo, alerts, reminders, voice, marketplace.',
     features: [
       Feature.reports, Feature.employees, Feature.branding, Feature.alerts, Feature.reminders, Feature.voice,
       Feature.marketplace,
@@ -158,13 +155,15 @@ class Package {
 
   static List<Package> defaults() => [
         Package(id: 'starter-monthly', name: 'Starter', price: 'Rs 500 / month', amount: 500, days: 30, sort: 1,
-            features: [Feature.reports, Feature.employees, Feature.branding], description: 'No ads, reports, employees, your logo.'),
+            features: [Feature.reports, Feature.employees, Feature.branding], description: 'Reports, employees, your logo.'),
         Package(id: 'pro-monthly', name: 'Pro monthly', price: 'Rs 1,000 / month', amount: 1000, days: 30, sort: 2,
-            features: Plans.pro.features, description: 'Everything in BizPOS, no ads.'),
+            features: Plans.pro.features, description: 'Everything in BizPOS.'),
+        Package(id: 'trial-14', name: 'Free trial', price: 'Free for 14 days', amount: 0, days: 14, sort: 0,
+            features: Plans.pro.features, description: 'Try every paid feature for 14 days.'),
         Package(id: 'pro-yearly', name: 'Pro yearly', price: 'Rs 10,000 / year', amount: 10000, days: 365, sort: 3,
             features: Plans.pro.features, description: 'Everything, two months free.'),
         Package(id: 'lifetime', name: 'Lifetime Basic', price: 'Rs 15,000 one time', amount: 15000, days: 0, sort: 4,
-            features: Plans.basic.features, description: 'No ads, reports, employees, your logo. Forever.'),
+            features: Plans.basic.features, description: 'Reports, employees, your logo. Forever.'),
       ];
 }
 

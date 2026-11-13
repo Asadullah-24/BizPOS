@@ -7,9 +7,7 @@ import '../core/access.dart';
 import '../core/i18n.dart';
 import '../core/license.dart';
 import '../core/packages.dart';
-import '../services/ads_service.dart';
 import '../services/alert_service.dart';
-import 'common.dart';
 import 'screens/plan_screen.dart';
 
 /// Dark animated backdrop with slowly drifting glow orbs (welcome / sign-in).
@@ -242,15 +240,14 @@ Future<void> showVendorContact(BuildContext context, {String? message}) async {
   );
 }
 
-/// Runs [open] when [feature] is available; otherwise offers a 24-hour unlock
-/// with a rewarded ad, or the plans screen.
+/// Runs [open] when [feature] is available; otherwise shows what it needs and
+/// links to the plans screen.
 Future<void> openFeature(BuildContext context, String feature, VoidCallback open) async {
-  final access = Access.instance;
-  if (access.has(feature)) {
+  if (Access.instance.has(feature)) {
     open();
     return;
   }
-  final choice = await showModalBottomSheet<String>(
+  final go = await showModalBottomSheet<bool>(
     context: context,
     builder: (ctx) => SafeArea(
       child: Padding(
@@ -262,35 +259,16 @@ Future<void> openFeature(BuildContext context, String feature, VoidCallback open
           const SizedBox(height: 8),
           Text(tr(Feature.labels[feature] ?? feature), textAlign: TextAlign.center),
           const SizedBox(height: 16),
-          if (Feature.adUnlockable.contains(feature)) ...[
-            FilledButton.icon(
-              icon: const Icon(Icons.ondemand_video),
-              label: Text(tr('Watch an ad, use it free for 24 hours')),
-              onPressed: () => Navigator.pop(ctx, 'ad'),
-            ),
-            const SizedBox(height: 8),
-          ],
-          OutlinedButton.icon(
+          FilledButton.icon(
             icon: const Icon(Icons.upgrade),
-            label: Text(tr('See plans, no ads')),
-            onPressed: () => Navigator.pop(ctx, 'plans'),
+            label: Text(tr('See plans')),
+            onPressed: () => Navigator.pop(ctx, true),
           ),
         ]),
       ),
     ),
   );
-  if (!context.mounted) return;
-  if (choice == 'ad') {
-    var earned = false;
-    final ok = await guard(context, () async => earned = await AdsService.unlock(feature));
-    if (!context.mounted) return;
-    if (ok && earned) {
-      showSnack(context, tr('Unlocked for 24 hours'));
-      open();
-    } else if (ok) {
-      showSnack(context, tr('Watch the whole ad to unlock.'), error: true);
-    }
-  } else if (choice == 'plans') {
+  if (go == true && context.mounted) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanScreen()));
   }
 }

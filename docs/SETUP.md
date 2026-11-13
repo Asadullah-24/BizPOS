@@ -63,8 +63,8 @@ Never commit the keystore or passwords. This repository is public.
 
 **Free to start.** Anyone can install BizPOS and sell straight away. With Firebase configured the first screen
 offers *Create free account*, *Sign in*, *Continue with Google* or *Use without an account (offline)*.
-Free shops get the core POS with banner ads. Paid features (reports, employees, logo, alerts, reminders, voice)
-come from a subscription, an offline code, or a rewarded ad that unlocks one feature for 24 hours.
+Free shops get the core POS with no ads. Paid features (reports, employees, logo, alerts, reminders, voice)
+come from a subscription or an offline code. To let a shop try them, assign the *Free trial* package (14 days).
 
 **Connect Firebase** (once):
 1. Create the project, enable Email/Password and Google sign-in, create Firestore (see the chat steps).
@@ -79,7 +79,7 @@ come from a subscription, an offline code, or a rewarded ad that unlocks one fea
 * Shops: search and filter; open a shop to activate or extend a package (days are added to any time left),
   set free, block/unblock, see devices and payment history, WhatsApp the owner.
 * Packages: create, edit, hide or delete packages (name, price text, amount, days or lifetime, features, no ads).
-  *Create default packages* adds Starter, Pro monthly, Pro yearly and Lifetime Basic.
+  *Create default packages* adds Free trial (14 days), Starter, Pro monthly, Pro yearly and Lifetime Basic.
 * Requests: shops request a package from their Plan screen; approve (records the payment) or reject.
 * Settings: branding (footer and support phone for every shop), 2FA on/off for the panel, account password,
   offline unlock codes, change the offline code password.
@@ -120,7 +120,6 @@ Renew or upgrade from *My shops* (your register of every shop, with expiry and Q
 | Free trial | 14 days | Everything in Basic, 20 voice credits |
 | Basic | Rs 15,000 one time | Full offline POS, all current modules, low stock shown in app, 20 credits |
 | Pro | Rs 1,000 / month or Rs 10,000 / year | Basic + low-stock and payment alerts, WhatsApp/SMS reminders, unlimited voice, marketplace listing (phase 2) |
-| Credits | 50 = Rs 300, 200 = Rs 1,000, 1000 = Rs 4,000 | Voice stock updates, 1 credit each; 3 free credits per rewarded ad (10 ads/day) |
 
 Any paid feature can also be added on its own to Basic from the console. When a plan expires the shop can still see
 its data and reports, but selling pauses until renewal.
@@ -129,9 +128,6 @@ its data and reports, but selling pauses until renewal.
 `python3 tool/admin_key.py "new password"`, add the printed public key to `LicenseKeys.trusted` in
 `lib/core/license.dart`, rebuild, and add the printed authenticator secret to your authenticator app.
 Keep the old key in the list so existing shops keep working.
-
-**AdMob**: the app ships with Google's test ad ids. Before selling, put your AdMob App ID in
-`tool/patch_platforms.py` (Android and iOS) and your rewarded ad unit ids in `lib/services/ads_service.dart`.
 
 ## 6. Google Drive backup
 

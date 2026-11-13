@@ -7,7 +7,6 @@ import 'package:bizpos/core/db.dart';
 import 'package:bizpos/core/ids.dart';
 import 'package:bizpos/core/license.dart';
 import 'package:bizpos/core/packages.dart';
-import 'package:bizpos/services/ads_service.dart';
 import 'package:bizpos/services/cloud_service.dart';
 import 'package:bizpos/services/drive_service.dart';
 import 'package:bizpos/ui/screens/auth/sign_in_screen.dart';
@@ -45,7 +44,6 @@ void phone(WidgetTester t) {
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
-    AdsService.disabled = true;
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
     SharedPreferences.setMockInitialValues({});
@@ -65,7 +63,6 @@ void main() {
     expect(find.text('Set up your business'), findsOneWidget);
     expect(Access.instance.isPaid, isFalse);
     expect(Access.instance.has(Feature.reports), isFalse);
-    expect(Access.instance.adFree, isFalse);
 
     // An offline code still unlocks paid features.
     await t.runAsync(() async {
@@ -76,7 +73,7 @@ void main() {
     });
     await settle(t, 3);
     expect(Access.instance.has(Feature.reports), isTrue);
-    expect(Access.instance.adFree, isTrue);
+    expect(Access.instance.isPaid, isTrue);
   });
 
   testWidgets('welcome and sign-up screens render and validate', (t) async {

@@ -11,6 +11,7 @@ import '../../core/i18n.dart';
 import '../../core/permissions.dart';
 import '../../models/models.dart';
 import '../../services/auth_service.dart';
+import '../../services/biometric_service.dart';
 import '../../core/access.dart';
 import '../../core/packages.dart';
 import '../../services/cloud_service.dart';
@@ -193,6 +194,7 @@ class SettingsScreen extends StatelessWidget {
         ),
         const SectionTitle('Security'),
         ListTile(leading: const Icon(Icons.password), title: Text(tr('Change my PIN')), onTap: () => _changePin(context)),
+        const BiometricTile(),
         ListTile(
           leading: const Icon(Icons.verified_user_outlined),
           title: Text(tr('Two-factor sign-in (authenticator)')),
@@ -416,6 +418,72 @@ class _BusinessTypeEditorState extends State<BusinessTypeEditor> {
           child: FilledButton(onPressed: _save, child: Text(tr('Save'))),
         ),
       ]),
+    );
+  }
+}
+
+
+/// Settings switch: unlock this phone with fingerprint / face instead of the PIN.
+class BiometricTile extends StatefulWidget {
+  const BiometricTile({super.key});
+
+  @override
+  State<BiometricTile> createState() => _BiometricTileState();
+}
+
+class _BiometricTileState extends State<BiometricTile> {
+  bool? _available;
+  bool _on = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final available = await BiometricService.available();
+    final enrolled = await BiometricService.enrolledEmployee();
+    if (!mounted) return;
+    setState(() {
+      _available = available;
+      _on = enrolled != null && enrolled == AppState.instance.user?.id;
+    });
+  }
+
+  Future<void> _toggle(bool v) async {
+    final user = AppState.instance.user;
+    if (user == null) return;
+    if (v) {
+      final ok = await BiometricService.authenticate(tr('Confirm your fingerprint to turn on fingerprint unlock'));
+      if (!ok) {
+        if (mounted) showSnack(context, tr('Fingerprint not confirmed'));
+        return;
+      }
+      await BiometricService.enroll(user.id);
+    } else {
+      await BiometricService.disable();
+    }
+    if (mounted) setState(() => _on = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_available == null) return const SizedBox.shrink();
+    if (_available == false) {
+      return ListTile(
+        leading: const Icon(Icons.fingerprint),
+        title: Text(tr('Unlock with fingerprint')),
+        subtitle: Text(tr('Add a fingerprint or face in your phone settings first.')),
+        enabled: false,
+      );
+    }
+    return SwitchListTile(
+      secondary: const Icon(Icons.fingerprint),
+      title: Text(tr('Unlock with fingerprint')),
+      subtitle: Text(tr('Use fingerprint or face on this phone. Your PIN still works.')),
+      value: _on,
+      onChanged: _toggle,
     );
   }
 }

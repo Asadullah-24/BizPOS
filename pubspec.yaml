@@ -50,6 +50,7 @@ dependencies:
   # Paid features: voice, alerts, reminders
   speech_to_text: 7.0.0 # 7.1+ needs a newer Flutter Gradle plugin
   flutter_local_notifications: ^17.2.4
+  local_auth: ^2.3.0
   url_launcher: ^6.3.0
 
   # Accounts and online subscriptions

@@ -8,6 +8,7 @@ import '../../models/models.dart';
 import '../../services/activity_log.dart';
 import '../../services/alert_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/biometric_service.dart';
 import '../../services/cloud_service.dart';
 import '../../services/drive_service.dart';
 import '../brand.dart';
@@ -35,10 +36,57 @@ class _LockScreenState extends State<LockScreen> {
   Employee? _pending;
   String? _pendingSecret;
 
+  /// Employee enrolled for fingerprint unlock on this phone, if any.
+  Employee? _bioEmployee;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => FocusManager.instance.primaryFocus?.unfocus());
+    _initBiometric();
+  }
+
+  Future<void> _initBiometric() async {
+    final id = await BiometricService.enrolledEmployee();
+    if (id == null) return;
+    final rows = await Db.instance.s.q(
+      'SELECT * FROM employees WHERE id = ? AND deleted_at IS NULL AND active = 1',
+      [id],
+    );
+    if (rows.isEmpty) {
+      await BiometricService.disable();
+      return;
+    }
+    if (!await BiometricService.available()) return;
+    if (!mounted) return;
+    setState(() => _bioEmployee = Employee.fromRow(rows.first));
+    _biometricUnlock();
+  }
+
+  Future<void> _biometricUnlock() async {
+    final e = _bioEmployee;
+    if (e == null || _busy || _mode != 'login') return;
+    final ok = await BiometricService.authenticate(tr('Unlock BizPOS'));
+    if (!ok || !mounted) return;
+    await _afterCredentials(e);
+  }
+
+  /// PIN or fingerprint accepted: ask for the authenticator code if 2FA is on.
+  Future<void> _afterCredentials(Employee e) async {
+    final row = await Db.instance.s.byId('employees', e.id);
+    final secret = row?['totp_secret'] as String?;
+    if (!mounted) return;
+    if (secret != null && secret.isNotEmpty) {
+      setState(() {
+        _busy = false;
+        _pin = '';
+        _pending = e;
+        _pendingSecret = secret;
+        _mode = 'totp';
+      });
+      return;
+    }
+    await _finishLogin(e);
   }
 
   int get _maxLen => _mode == 'totp' ? 6 : 8;
@@ -182,19 +230,7 @@ class _LockScreenState extends State<LockScreen> {
       });
       return;
     }
-    final row = await Db.instance.s.byId('employees', e.id);
-    final secret = row?['totp_secret'] as String?;
-    if (secret != null && secret.isNotEmpty) {
-      setState(() {
-        _busy = false;
-        _pin = '';
-        _pending = e;
-        _pendingSecret = secret;
-        _mode = 'totp';
-      });
-      return;
-    }
-    await _finishLogin(e);
+    await _afterCredentials(e);
   }
 
   String get _prompt => switch (_mode) {
@@ -282,6 +318,15 @@ class _LockScreenState extends State<LockScreen> {
                             ]),
                           ]),
                         ),
+                        if (_bioEmployee != null && _mode == 'login')
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: OutlinedButton.icon(
+                              onPressed: _busy ? null : _biometricUnlock,
+                              icon: const Icon(Icons.fingerprint, size: 28),
+                              label: Text('${tr('Unlock with fingerprint')} (${_bioEmployee!.name})'),
+                            ),
+                          ),
                         const SizedBox(height: 8),
                         Text(
                           tr('Forgot your PIN? The owner can reset it in Employees.'),

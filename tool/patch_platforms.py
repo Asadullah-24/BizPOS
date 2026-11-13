@@ -84,6 +84,7 @@ ANDROID_PERMISSIONS = [
     '<uses-permission android:name="android.permission.CAMERA"/>',
     '<uses-permission android:name="android.permission.RECORD_AUDIO"/>',
     '<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>',
+    '<uses-permission android:name="android.permission.USE_BIOMETRIC"/>',
     '<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>',
     '<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30"/>',
     '<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30"/>',
@@ -139,6 +140,7 @@ IOS_KEYS = {
     "NSMicrophoneUsageDescription": "The microphone is used for voice stock updates.",
     "NSSpeechRecognitionUsageDescription": "Speech recognition turns voice commands into stock updates.",
     "NSPhotoLibraryUsageDescription": "Photos are used as product images.",
+    "NSFaceIDUsageDescription": "Face ID unlocks BizPOS instead of typing your PIN.",
     "NSBluetoothAlwaysUsageDescription": "Bluetooth is used to print receipts on thermal printers.",
     "NSBluetoothPeripheralUsageDescription": "Bluetooth is used to print receipts on thermal printers.",
 }
@@ -231,6 +233,13 @@ end
 """
 
 
+def main_activity(s: str) -> str:
+    # local_auth (fingerprint unlock) needs a FragmentActivity.
+    s = s.replace("import io.flutter.embedding.android.FlutterActivity", "import io.flutter.embedding.android.FlutterFragmentActivity")
+    s = re.sub(r":\s*FlutterActivity\(\)", ": FlutterFragmentActivity()", s)
+    return s
+
+
 def main():
     android = ROOT / "android"
     if android.exists():
@@ -238,6 +247,8 @@ def main():
         patch(android / "gradle" / "wrapper" / "gradle-wrapper.properties", gradle_wrapper)
         patch(android / "app" / "build.gradle", app_gradle)
         patch(android / "app" / "src" / "main" / "AndroidManifest.xml", manifest)
+        for kt in (android / "app" / "src" / "main").rglob("MainActivity.kt"):
+            patch(kt, main_activity)
     ios = ROOT / "ios"
     if ios.exists():
         patch(ios / "Runner" / "Info.plist", info_plist)

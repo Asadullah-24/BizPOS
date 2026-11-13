@@ -11,7 +11,12 @@ import '../../core/i18n.dart';
 import '../../core/permissions.dart';
 import '../../models/models.dart';
 import '../../services/auth_service.dart';
-import '../../core/license.dart';
+import '../../core/access.dart';
+import '../../core/packages.dart';
+import '../../services/cloud_service.dart';
+import '../brand.dart';
+import 'account_screen.dart';
+import 'admin/admin_panel.dart';
 import '../../services/printer_service.dart';
 import '../../services/product_service.dart';
 import '../common.dart';
@@ -77,12 +82,12 @@ class SettingsScreen extends StatelessWidget {
             leading: ProductThumb(image: s['logo'], name: app.businessName, size: 40),
             title: Text(tr('Business logo')),
             subtitle: Text(tr('Shown on the login screen, dashboard and invoices')),
-            onTap: () async {
+            onTap: () => openFeature(context, Feature.branding, () async {
               final x = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 600, maxHeight: 600, imageQuality: 85);
               if (x == null) return;
               final name = await ImageStore.save(File(x.path));
               await app.setSetting('logo', name);
-            },
+            }),
             onLongPress: () => app.setSetting('logo', ''),
           ),
           _textTile(context, 'business_name', 'Business name', Icons.storefront),
@@ -156,11 +161,34 @@ class SettingsScreen extends StatelessWidget {
           const SectionTitle('Selling'),
           _switch('block_out_of_stock', 'Block selling items that are out of stock'),
         ],
+        const SectionTitle('Appearance'),
+        ListTile(
+          leading: const Icon(Icons.dark_mode_outlined),
+          title: Text(tr('Theme')),
+          subtitle: Text(tr(switch (s['theme'] ?? 'dark') { 'light' => 'Light', 'system' => 'Same as phone', _ => 'Dark' })),
+          onTap: () async {
+            final v = await showDialog<String>(
+              context: context,
+              builder: (ctx) => SimpleDialog(title: Text(tr('Theme')), children: [
+                for (final e in const {'dark': 'Dark', 'light': 'Light', 'system': 'Same as phone'}.entries)
+                  SimpleDialogOption(onPressed: () => Navigator.pop(ctx, e.key), child: Text(tr(e.value))),
+              ]),
+            );
+            if (v != null) await app.setSetting('theme', v);
+          },
+        ),
         const SectionTitle('Plan'),
+        if (CloudService.instance.configured)
+          ListTile(
+            leading: const Icon(Icons.account_circle_outlined),
+            title: Text(tr('Account')),
+            subtitle: Text(CloudService.instance.user?.email ?? tr('Not signed in')),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountScreen())),
+          ),
         ListTile(
           leading: const Icon(Icons.workspace_premium_outlined),
           title: Text(tr('Plan and upgrades')),
-          subtitle: Text(tr(LicenseService.instance.plan.name)),
+          subtitle: Text(tr(Access.instance.planName)),
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanScreen())),
         ),
         const SectionTitle('Security'),
@@ -190,14 +218,20 @@ class SettingsScreen extends StatelessWidget {
             },
           ),
         const SectionTitle('About'),
+        if (CloudService.instance.isAdmin)
+          ListTile(
+            leading: const Icon(Icons.admin_panel_settings),
+            title: Text(tr('Super admin panel')),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminGate())),
+          ),
         ListTile(
-          leading: const Icon(Icons.admin_panel_settings_outlined),
-          title: Text(tr('Super admin')),
+          leading: const Icon(Icons.qr_code_2),
+          title: Text(tr('Offline unlock codes (super admin)')),
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SuperAdminLogin())),
         ),
         ListTile(
           leading: const Icon(Icons.info_outline),
-          title: const Text('BizPOS 1.1.0'),
+          title: const Text('BizPOS 1.2.0'),
           subtitle: Text('${tr('Device')} ${Db.instance.deviceId.substring(0, 8).toUpperCase()}'),
         ),
         const SizedBox(height: 24),

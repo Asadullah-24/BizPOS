@@ -78,30 +78,38 @@ jobs:
             echo "No KEYSTORE_BASE64 secret: APK is signed with a temporary debug key." | tee -a ci.log
           fi
 
-      - name: Build APK
+      - name: Build APKs (one per CPU, smaller) and Play Store bundle
         run: |
           set -o pipefail
+          OPTS="--release --obfuscate --split-debug-info=build/symbols"
           # Maven Central sometimes fails for a moment; retry once.
-          flutter build apk --release 2>&1 | tee -a ci.log || (sleep 30 && flutter build apk --release 2>&1 | tee -a ci.log)
-          cp build/app/outputs/flutter-apk/app-release.apk BizPOS-${{ github.run_number }}.apk
+          flutter build apk $OPTS --split-per-abi 2>&1 | tee -a ci.log || (sleep 30 && flutter build apk $OPTS --split-per-abi 2>&1 | tee -a ci.log)
+          flutter build appbundle $OPTS 2>&1 | tee -a ci.log
+          OUT=build/app/outputs
+          cp $OUT/flutter-apk/app-arm64-v8a-release.apk BizPOS.apk
+          cp $OUT/flutter-apk/app-armeabi-v7a-release.apk BizPOS-armv7.apk
+          cp $OUT/bundle/release/app-release.aab BizPOS.aab
+          ls -la BizPOS*.apk BizPOS.aab | tee -a ci.log
 
       - uses: actions/upload-artifact@v4
         with:
-          name: BizPOS-apk-${{ github.run_number }}
-          path: BizPOS-${{ github.run_number }}.apk
+          name: BizPOS-${{ github.run_number }}
+          path: |
+            BizPOS.apk
+            BizPOS-armv7.apk
+            BizPOS.aab
 
       # Direct phone-friendly link: https://github.com/<owner>/<repo>/releases/latest/download/BizPOS.apk
-      - name: Publish APK to the latest release
+      - name: Publish to the latest release
         if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cp BizPOS-${{ github.run_number }}.apk BizPOS.apk
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest BizPOS.apk \
+          gh release create latest BizPOS.apk BizPOS-armv7.apk BizPOS.aab \
             --target "${{ github.sha }}" \
             --title "BizPOS build ${{ github.run_number }}" \
-            --notes "Automatic Android build from commit ${{ github.sha }}. Install BizPOS.apk on your phone." \
+            --notes "BizPOS.apk: most phones (64-bit). BizPOS-armv7.apk: older 32-bit phones. BizPOS.aab: upload to Google Play." \
             --latest
 
       - name: Commit generated platform folders

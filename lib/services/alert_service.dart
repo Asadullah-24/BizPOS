@@ -2,6 +2,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../core/access.dart';
 import '../core/app_state.dart';
 import '../core/db.dart';
 import '../core/format.dart';
@@ -54,7 +55,7 @@ class AlertService {
   }
 
   static Future<void> runChecks() async {
-    if (!LicenseService.instance.has(Feature.alerts)) return;
+    if (!Access.instance.has(Feature.alerts)) return;
     try {
       await _init();
       final low = await ProductService.lowStock(limit: 500);

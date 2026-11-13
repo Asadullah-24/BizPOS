@@ -1,11 +1,95 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/access.dart';
 import '../core/i18n.dart';
 import '../core/license.dart';
 import '../core/packages.dart';
+import '../services/ads_service.dart';
 import '../services/alert_service.dart';
+import 'common.dart';
 import 'screens/plan_screen.dart';
+
+/// Dark animated backdrop with slowly drifting glow orbs (welcome / sign-in).
+class AnimatedBackdrop extends StatefulWidget {
+  const AnimatedBackdrop({super.key, required this.child});
+  final Widget child;
+
+  @override
+  State<AnimatedBackdrop> createState() => _AnimatedBackdropState();
+}
+
+class _AnimatedBackdropState extends State<AnimatedBackdrop> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(seconds: 14))..repeat();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF070B14), Color(0xFF0B1324), Color(0xFF0A1A22)],
+        ),
+      ),
+      child: Stack(children: [
+        AnimatedBuilder(
+          animation: _c,
+          builder: (context, _) {
+            final t = _c.value * 2 * math.pi;
+            final size = MediaQuery.sizeOf(context);
+            Widget orb(double x, double y, double r, Color c) => Positioned(
+                  left: x - r,
+                  top: y - r,
+                  child: Container(
+                    width: r * 2,
+                    height: r * 2,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(colors: [c.withOpacity(0.55), c.withOpacity(0)]),
+                    ),
+                  ),
+                );
+            return Stack(children: [
+              orb(size.width * (0.2 + 0.1 * math.sin(t)), size.height * (0.18 + 0.05 * math.cos(t)), 180, cs.primary),
+              orb(size.width * (0.85 + 0.08 * math.cos(t * 1.3)), size.height * (0.45 + 0.06 * math.sin(t)), 200, cs.tertiary),
+              orb(size.width * (0.35 + 0.12 * math.cos(t * 0.7)), size.height * (0.88 + 0.04 * math.sin(t * 1.1)), 220, const Color(0xFF6366F1)),
+            ]);
+          },
+        ),
+        widget.child,
+      ]),
+    );
+  }
+}
+
+/// Fades and slides its child in after [delay] (staggered entrances).
+class FadeSlideIn extends StatelessWidget {
+  const FadeSlideIn({super.key, required this.child, this.delay = 0});
+  final Widget child;
+  final int delay;
+
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: Duration(milliseconds: 500 + delay),
+        curve: Interval(delay / (500 + delay), 1, curve: Curves.easeOutCubic),
+        builder: (context, v, child) => Opacity(
+          opacity: v,
+          child: Transform.translate(offset: Offset(0, 24 * (1 - v)), child: child),
+        ),
+        child: child,
+      );
+}
 
 /// Gradient backdrop used by the login, activation and super admin screens.
 class BrandBackground extends StatelessWidget {
@@ -13,38 +97,7 @@ class BrandBackground extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [cs.primary, Color.lerp(cs.primary, cs.tertiary, 0.6)!, cs.tertiary],
-        ),
-      ),
-      child: Stack(children: [
-        // Soft floating circles give the backdrop depth.
-        Positioned(top: -80, right: -60, child: _Blob(size: 240, color: Colors.white.withOpacity(0.10))),
-        Positioned(bottom: -100, left: -70, child: _Blob(size: 300, color: Colors.white.withOpacity(0.08))),
-        Positioned(top: 160, left: -40, child: _Blob(size: 120, color: Colors.white.withOpacity(0.06))),
-        child,
-      ]),
-    );
-  }
-}
-
-class _Blob extends StatelessWidget {
-  const _Blob({required this.size, required this.color});
-  final double size;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-      );
+  Widget build(BuildContext context) => AnimatedBackdrop(child: child);
 }
 
 /// Raised card with a deep shadow (the "3D" panel on the login screen).
@@ -189,10 +242,15 @@ Future<void> showVendorContact(BuildContext context, {String? message}) async {
   );
 }
 
-/// Returns true when [feature] is unlocked; otherwise shows the upgrade sheet.
-bool requireFeature(BuildContext context, String feature) {
-  if (LicenseService.instance.has(feature)) return true;
-  showModalBottomSheet(
+/// Runs [open] when [feature] is available; otherwise offers a 24-hour unlock
+/// with a rewarded ad, or the plans screen.
+Future<void> openFeature(BuildContext context, String feature, VoidCallback open) async {
+  final access = Access.instance;
+  if (access.has(feature)) {
+    open();
+    return;
+  }
+  final choice = await showModalBottomSheet<String>(
     context: context,
     builder: (ctx) => SafeArea(
       child: Padding(
@@ -203,20 +261,43 @@ bool requireFeature(BuildContext context, String feature) {
           Text(tr('Paid feature'), textAlign: TextAlign.center, style: Theme.of(ctx).textTheme.titleLarge),
           const SizedBox(height: 8),
           Text(tr(Feature.labels[feature] ?? feature), textAlign: TextAlign.center),
-          const SizedBox(height: 4),
-          Text('${tr('Included in')} ${Plans.pro.name}: ${Plans.pro.price}', textAlign: TextAlign.center),
           const SizedBox(height: 16),
-          FilledButton.icon(
+          if (Feature.adUnlockable.contains(feature)) ...[
+            FilledButton.icon(
+              icon: const Icon(Icons.ondemand_video),
+              label: Text(tr('Watch an ad, use it free for 24 hours')),
+              onPressed: () => Navigator.pop(ctx, 'ad'),
+            ),
+            const SizedBox(height: 8),
+          ],
+          OutlinedButton.icon(
             icon: const Icon(Icons.upgrade),
-            label: Text(tr('See plans and upgrade')),
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanScreen()));
-            },
+            label: Text(tr('See plans, no ads')),
+            onPressed: () => Navigator.pop(ctx, 'plans'),
           ),
         ]),
       ),
     ),
   );
+  if (!context.mounted) return;
+  if (choice == 'ad') {
+    var earned = false;
+    final ok = await guard(context, () async => earned = await AdsService.unlock(feature));
+    if (!context.mounted) return;
+    if (ok && earned) {
+      showSnack(context, tr('Unlocked for 24 hours'));
+      open();
+    } else if (ok) {
+      showSnack(context, tr('Watch the whole ad to unlock.'), error: true);
+    }
+  } else if (choice == 'plans') {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanScreen()));
+  }
+}
+
+/// Synchronous check for places that only need yes/no; shows the unlock sheet when locked.
+bool requireFeature(BuildContext context, String feature) {
+  if (Access.instance.has(feature)) return true;
+  openFeature(context, feature, () {});
   return false;
 }

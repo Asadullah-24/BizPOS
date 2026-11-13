@@ -7,6 +7,7 @@ import '../../core/app_state.dart';
 import '../../core/business_templates.dart';
 import '../../core/i18n.dart';
 import '../../core/license.dart';
+import '../../services/cloud_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/backup_service.dart';
 import '../../services/drive_service.dart';
@@ -45,10 +46,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   BusinessTemplate _template = businessTemplates.first;
   String _lang = 'en';
 
+  Map<String, dynamic>? _cloudShop;
+
   @override
   void initState() {
     super.initState();
     _business.text = LicenseService.instance.storeName ?? '';
+    final cloud = CloudService.instance;
+    _owner.text = cloud.user?.displayName ?? '';
+    if (cloud.signedIn) {
+      cloud.existingShop().then((s) {
+        if (s == null || !mounted) return;
+        setState(() {
+          _cloudShop = s;
+          if (_business.text.isEmpty) _business.text = '${s['name'] ?? ''}';
+        });
+      }).catchError((_) {});
+    }
   }
 
   Future<void> _setLang(String l) async {
@@ -86,6 +100,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         pin: pin,
         language: _lang,
       );
+      // Link to the online account (creates the free shop on first use).
+      if (CloudService.instance.signedIn) {
+        try {
+          await CloudService.instance.ensureShopLinked();
+        } catch (_) {}
+      }
       // Sign the owner in straight away.
       final owner = await AuthService.login(pin);
       if (owner != null) {
@@ -154,6 +174,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Widget _basics() => ListView(padding: const EdgeInsets.all(16), children: [
         Text(tr('Welcome to BizPOS'), style: Theme.of(context).textTheme.headlineSmall),
+        if (_cloudShop != null)
+          Card(
+            margin: const EdgeInsets.only(top: 12),
+            child: ListTile(
+              leading: const Icon(Icons.storefront),
+              title: Text('${tr('Welcome back')}: ${_cloudShop!['name'] ?? ''}'),
+              subtitle: Text(tr('New phone? Restore your data from Google Drive below, or set up again. Your plan comes back automatically.')),
+            ),
+          ),
         const SizedBox(height: 4),
         Text(tr('Works fully offline. Your data stays on this phone and can be backed up to Google Drive.')),
         const SizedBox(height: 20),

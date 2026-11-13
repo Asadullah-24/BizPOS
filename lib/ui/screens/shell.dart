@@ -4,7 +4,10 @@ import 'package:provider/provider.dart';
 import '../../core/app_state.dart';
 import '../../core/business_templates.dart';
 import '../../core/i18n.dart';
+import '../../core/access.dart';
 import '../../core/license.dart';
+import '../../services/ads_service.dart';
+import '../../services/cloud_service.dart';
 import '../../core/packages.dart';
 import '../brand.dart';
 import 'plan_screen.dart';
@@ -54,18 +57,28 @@ class _ShellState extends State<Shell> {
     final dests = _dests(app);
     if (_index >= dests.length) _index = 0;
     final lic = context.watch<LicenseService>();
-    final page = KeyedSubtree(key: ValueKey(dests[_index].label), child: dests[_index].builder());
-    final banner = !lic.active
-        ? _PlanBanner(
-            text: '${tr('Your plan has ended. Selling is paused until it is renewed.')} ${tr('Call')} ${Vendor.pretty(lic.phone)}',
-            error: true,
-          )
-        : (lic.planExpires != 0 && lic.daysLeft <= 3)
-            ? _PlanBanner(text: '${tr(lic.plan.name)}: ${lic.daysLeft} ${tr('days left')}. ${tr('Renew to keep selling.')}')
-            : null;
+    final access = context.watch<Access>();
+    final cloud = context.watch<CloudService>();
+    final page = AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      switchInCurve: Curves.easeOutCubic,
+      child: KeyedSubtree(key: ValueKey(dests[_index].label), child: dests[_index].builder()),
+    );
+    final Widget? banner;
+    if (cloud.revokedNotice) {
+      banner = _PlanBanner(text: tr('This phone was removed from your account, so its data was erased.'), error: true);
+    } else if (access.blocked) {
+      banner = _PlanBanner(text: '${tr('This shop is blocked.')} ${tr('Call')} ${Vendor.pretty(lic.phone)}', error: true);
+    } else if (access.isPaid && access.expiresAt != 0 && access.daysLeft <= 3) {
+      banner = _PlanBanner(text: '${tr(access.planName)}: ${access.daysLeft} ${tr('days left')}. ${tr('Renew to keep paid features.')}');
+    } else {
+      banner = null;
+    }
+    final onSell = dests[_index].label == 'Sell';
     final body = Column(children: [
       if (banner != null) banner,
       Expanded(child: page),
+      if (!access.adFree && !onSell) const AdBanner(),
       const Material(child: SafeArea(top: false, bottom: false, child: VendorFooter())),
     ]);
 

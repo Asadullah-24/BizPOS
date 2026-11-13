@@ -6,6 +6,7 @@ import 'package:printing/printing.dart';
 
 import '../core/app_state.dart';
 import '../core/db.dart';
+import '../core/access.dart';
 import '../core/format.dart';
 import '../core/license.dart';
 import '../core/packages.dart';
@@ -145,7 +146,7 @@ class InvoicePdf {
         );
 
     final s = app.settings;
-    final logoFile = await ImageStore.file(s['logo']);
+    final logoFile = Access.instance.has(Feature.branding) ? await ImageStore.file(s['logo']) : null;
     final logo = logoFile == null ? null : pw.MemoryImage(await logoFile.readAsBytes());
     final lic = LicenseService.instance;
     final header = pw.Column(

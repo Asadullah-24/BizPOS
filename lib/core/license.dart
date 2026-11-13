@@ -238,6 +238,9 @@ class LicenseService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Tells listeners that branding or trusted keys changed.
+  void refresh() => notifyListeners();
+
   /// Applies an activation, upgrade or credit code. Returns a short summary.
   Future<String> apply(String code) async {
     final p = await LicenseCodec.decode(code);

@@ -6,7 +6,10 @@ import '../../core/business_templates.dart';
 import '../../core/db.dart';
 import '../../core/format.dart';
 import '../../core/i18n.dart';
+import '../../core/access.dart';
+import '../../core/packages.dart';
 import '../../core/permissions.dart';
+import '../brand.dart';
 import '../../models/models.dart';
 import '../../services/drive_service.dart';
 import '../../services/ledger_service.dart';
@@ -54,7 +57,7 @@ class DashboardScreen extends StatelessWidget {
     final seeProfit = app.can(Perm.reports);
     return Scaffold(
       appBar: AppBar(
-        leading: (app.settings['logo'] ?? '').isEmpty
+        leading: (app.settings['logo'] ?? '').isEmpty || !Access.instance.has(Feature.branding)
             ? null
             : Padding(
                 padding: const EdgeInsets.all(8),
@@ -93,7 +96,10 @@ class DashboardScreen extends StatelessWidget {
               value: Fmt.money(d.month.netSales),
               icon: Icons.calendar_month,
               sub: '${d.month.salesCount} ${tr('sales')}',
-              onTap: seeProfit ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen())) : null,
+              onTap: seeProfit
+                  ? () => openFeature(context, Feature.reports,
+                      () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen())))
+                  : null,
             ),
             if (seeProfit)
               StatCard(

@@ -1,13 +1,16 @@
 // Renders the real app on phone and tablet sizes and walks through every
 // main screen and a full sale, so layout errors and crashes fail CI.
 import 'package:bizpos/app.dart';
+import 'package:bizpos/core/access.dart';
 import 'package:bizpos/core/app_state.dart';
 import 'package:bizpos/core/business_templates.dart';
 import 'package:bizpos/core/db.dart';
 import 'package:bizpos/core/ids.dart';
 import 'package:bizpos/core/license.dart';
 import 'package:bizpos/models/models.dart';
+import 'package:bizpos/services/ads_service.dart';
 import 'package:bizpos/services/auth_service.dart';
+import 'package:bizpos/services/cloud_service.dart';
 import 'package:bizpos/services/drive_service.dart';
 import 'package:bizpos/services/product_service.dart';
 import 'package:bizpos/services/setup_service.dart';
@@ -29,6 +32,8 @@ Widget app() => MultiProvider(
         ChangeNotifierProvider<AppState>.value(value: AppState.instance),
         ChangeNotifierProvider<DriveService>.value(value: DriveService.instance),
         ChangeNotifierProvider<LicenseService>.value(value: LicenseService.instance),
+        ChangeNotifierProvider<Access>.value(value: Access.instance),
+        ChangeNotifierProvider<CloudService>.value(value: CloudService.instance),
       ],
       child: const BizPosApp(),
     );
@@ -56,6 +61,7 @@ Future<void> openFromMore(WidgetTester t, String label) async {
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
+    AdsService.disabled = true;
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
     SharedPreferences.setMockInitialValues({});
@@ -66,6 +72,7 @@ void main() {
     LicenseKeys.trusted.add('bX-2DqGStn1nvQ5vvJ5hUBRlI4awixygow2VCWd3s6U');
     SuperAdmin.key = await LicenseKeys.derive('test-password-123');
     await LicenseService.instance.load();
+    Access.instance.load();
     await LicenseService.instance.apply(await SuperAdmin.issue(
       type: 'act',
       device: LicenseService.instance.deviceCode,

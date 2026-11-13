@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_state.dart';
 import '../../core/format.dart';
 import '../../core/i18n.dart';
-import '../../core/license.dart';
+import '../../core/access.dart';
 import '../../core/packages.dart';
 import '../../core/permissions.dart';
 import '../../models/models.dart';
@@ -46,9 +46,8 @@ class _VoiceStockScreenState extends State<VoiceStockScreen> {
   }
 
   Future<void> _listen() async {
-    final lic = LicenseService.instance;
-    if (!lic.has(Feature.voice) && lic.credits < Credits.voiceCost) {
-      setState(() => _error = tr('No credits left. Watch an ad or buy credits.'));
+    if (!Access.instance.has(Feature.voice)) {
+      setState(() => _error = tr('Voice updates are locked. Watch an ad or upgrade.'));
       return;
     }
     setState(() {
@@ -98,9 +97,7 @@ class _VoiceStockScreenState extends State<VoiceStockScreen> {
   Future<void> _apply() async {
     final c = _cmd;
     if (c == null) return;
-    final lic = LicenseService.instance;
     final ok = await guard(context, () async {
-      if (!lic.has(Feature.voice)) await lic.spend(Credits.voiceCost.toDouble(), 'Voice stock update');
       await InventoryService.adjust(
         productId: c.product.id,
         mode: c.action,
@@ -122,16 +119,17 @@ class _VoiceStockScreenState extends State<VoiceStockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final lic = context.watch<LicenseService>();
+    final access = context.watch<Access>();
     final cs = Theme.of(context).colorScheme;
     final canAdjust = AppState.instance.can(Perm.inventory);
     return Scaffold(
       appBar: AppBar(title: Text(tr('Voice stock update')), actions: [
-        TextButton.icon(
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanScreen())),
-          icon: const Icon(Icons.toll),
-          label: Text(lic.has(Feature.voice) ? tr('Unlimited') : '${Fmt.qty(lic.credits)} ${tr('credits')}'),
-        ),
+        if (!access.paidHas(Feature.voice))
+          TextButton.icon(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanScreen())),
+            icon: const Icon(Icons.timer_outlined),
+            label: Text(tr('24h unlock')),
+          ),
       ]),
       body: !canAdjust
           ? const EmptyState(icon: Icons.lock, text: 'You do not have permission to adjust stock.')
@@ -213,7 +211,7 @@ class _VoiceStockScreenState extends State<VoiceStockScreen> {
                       FilledButton.icon(
                         onPressed: _apply,
                         icon: const Icon(Icons.check),
-                        label: Text(lic.has(Feature.voice) ? tr('Update stock') : '${tr('Update stock')} (-${Credits.voiceCost} ${tr('credit')})'),
+                        label: Text(tr('Update stock')),
                       ),
                     ]),
                   ),

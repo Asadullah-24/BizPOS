@@ -5,7 +5,7 @@ import '../../core/app_state.dart';
 import '../../core/business_templates.dart';
 import '../../core/format.dart';
 import '../../core/i18n.dart';
-import '../../core/license.dart';
+import '../../core/access.dart';
 import '../../core/permissions.dart';
 import '../../models/models.dart';
 import '../../services/cart.dart';
@@ -269,8 +269,8 @@ class _PosScreenState extends State<PosScreen> {
 
   Future<void> _checkout(BuildContext context) async {
     if (pos.cart.isEmpty) return;
-    if (!LicenseService.instance.canSell) {
-      showSnack(context, tr('Your plan has ended. Renew it to keep selling.'), error: true);
+    if (Access.instance.blocked) {
+      showSnack(context, tr('This shop is blocked. Contact BizPOS support.'), error: true);
       Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanScreen()));
       return;
     }

@@ -1,11 +1,17 @@
-// A fresh phone must show the activation screen; nothing else opens until a
-// super admin code is applied.
+// Free start: a fresh phone (no Firebase config in CI) goes straight to shop
+// setup. Offline unlock codes still work, and the welcome / sign-in screens render.
 import 'package:bizpos/app.dart';
+import 'package:bizpos/core/access.dart';
 import 'package:bizpos/core/app_state.dart';
 import 'package:bizpos/core/db.dart';
 import 'package:bizpos/core/ids.dart';
 import 'package:bizpos/core/license.dart';
+import 'package:bizpos/core/packages.dart';
+import 'package:bizpos/services/ads_service.dart';
+import 'package:bizpos/services/cloud_service.dart';
 import 'package:bizpos/services/drive_service.dart';
+import 'package:bizpos/ui/screens/auth/sign_in_screen.dart';
+import 'package:bizpos/ui/screens/auth/welcome_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -19,9 +25,27 @@ Future<void> settle(WidgetTester t, [int rounds = 8]) async {
   }
 }
 
+Widget providers(Widget child) => MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AppState>.value(value: AppState.instance),
+        ChangeNotifierProvider<DriveService>.value(value: DriveService.instance),
+        ChangeNotifierProvider<LicenseService>.value(value: LicenseService.instance),
+        ChangeNotifierProvider<Access>.value(value: Access.instance),
+        ChangeNotifierProvider<CloudService>.value(value: CloudService.instance),
+      ],
+      child: child,
+    );
+
+void phone(WidgetTester t) {
+  t.view.devicePixelRatio = 2.0;
+  t.view.physicalSize = const Size(412, 915) * 2.0;
+  addTearDown(t.view.reset);
+}
+
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
+    AdsService.disabled = true;
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
     SharedPreferences.setMockInitialValues({});
@@ -30,42 +54,49 @@ void main() {
     await Db.instance.wipe();
     await AppState.instance.load();
     await LicenseService.instance.load();
+    Access.instance.load();
     LicenseKeys.trusted.add('bX-2DqGStn1nvQ5vvJ5hUBRlI4awixygow2VCWd3s6U');
   });
 
-  testWidgets('activation gate, then onboarding after a valid code', (t) async {
-    t.view.devicePixelRatio = 2.0;
-    t.view.physicalSize = const Size(412, 915) * 2.0;
-    addTearDown(t.view.reset);
-    await t.pumpWidget(MultiProvider(
-      providers: [
-        ChangeNotifierProvider<AppState>.value(value: AppState.instance),
-        ChangeNotifierProvider<DriveService>.value(value: DriveService.instance),
-        ChangeNotifierProvider<LicenseService>.value(value: LicenseService.instance),
-      ],
-      child: const BizPosApp(),
-    ));
-    await settle(t);
-    expect(find.text('Activate this phone'), findsOneWidget);
-    expect(find.text(LicenseService.instance.deviceCodePretty), findsOneWidget);
-    expect(find.textContaining('0322-4699887'), findsWidgets);
-
-    // Super admin screen opens from the gate.
-    await t.tap(find.text('Super admin'));
-    await settle(t);
-    expect(find.text('Master password'), findsOneWidget);
-    await t.pageBack();
-    await settle(t);
-
-    await t.runAsync(() async {
-      SuperAdmin.key = await LicenseKeys.derive('test-password-123');
-      final code = await SuperAdmin.issue(type: 'act', device: LicenseService.instance.deviceCode, plan: 'trial', storeName: 'Gate Shop', expires: nowMs() + 86400000 * 14);
-      await LicenseService.instance.apply(code);
-      SuperAdmin.key = null;
-    });
+  testWidgets('fresh phone opens shop setup with no activation', (t) async {
+    phone(t);
+    await t.pumpWidget(providers(const BizPosApp()));
     await settle(t);
     expect(find.text('Set up your business'), findsOneWidget);
-    final field = t.widget<TextField>(find.byType(TextField).first);
-    expect(field.controller?.text, 'Gate Shop');
+    expect(Access.instance.isPaid, isFalse);
+    expect(Access.instance.has(Feature.reports), isFalse);
+    expect(Access.instance.adFree, isFalse);
+
+    // An offline code still unlocks paid features.
+    await t.runAsync(() async {
+      SuperAdmin.key = await LicenseKeys.derive('test-password-123');
+      await LicenseService.instance.apply(await SuperAdmin.issue(
+          type: 'act', device: LicenseService.instance.deviceCode, plan: 'basic', storeName: 'Code Shop'));
+      SuperAdmin.key = null;
+    });
+    await settle(t, 3);
+    expect(Access.instance.has(Feature.reports), isTrue);
+    expect(Access.instance.adFree, isTrue);
+  });
+
+  testWidgets('welcome and sign-up screens render and validate', (t) async {
+    phone(t);
+    await t.pumpWidget(providers(MaterialApp(theme: buildTheme(Brightness.dark), home: const WelcomeScreen())));
+    await settle(t, 6);
+    expect(find.text('Create free account'), findsOneWidget);
+    expect(find.text('Continue with Google'), findsOneWidget);
+    expect(find.text('Use without an account (offline)'), findsOneWidget);
+
+    await t.pumpWidget(providers(MaterialApp(theme: buildTheme(Brightness.dark), home: const SignInScreen(signUp: true))));
+    await settle(t, 6);
+    await t.tap(find.text('Create account'));
+    await t.pump();
+    expect(find.text('Enter your name.'), findsOneWidget);
+    expect(find.text('Enter your email.'), findsOneWidget);
+    await t.enterText(find.byType(TextFormField).at(1), 'shop@example.com');
+    await t.enterText(find.byType(TextFormField).at(2), 'short');
+    await t.tap(find.text('Create account'));
+    await t.pump();
+    expect(find.text('At least 8 characters.'), findsOneWidget);
   });
 }

@@ -8,6 +8,7 @@ import '../../models/models.dart';
 import '../../services/activity_log.dart';
 import '../../services/alert_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/cloud_service.dart';
 import '../../services/drive_service.dart';
 import '../brand.dart';
 import '../common.dart';
@@ -71,6 +72,48 @@ class _LockScreenState extends State<LockScreen> {
   }
 
   Future<void> _forgot() async {
+    final cloud = CloudService.instance;
+    if (cloud.signedIn) {
+      String? password;
+      if (cloud.usesPassword) {
+        final c = TextEditingController();
+        password = await showDialog<String>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(tr('Confirm it is you')),
+            content: TextField(
+              controller: c,
+              obscureText: true,
+              autofocus: true,
+              decoration: InputDecoration(labelText: '${tr('Account password for')} ${cloud.user?.email ?? ''}'),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Cancel'))),
+              FilledButton(onPressed: () => Navigator.pop(ctx, c.text), child: Text(tr('Continue'))),
+            ],
+          ),
+        );
+        if (password == null) return;
+      }
+      setState(() => _busy = true);
+      try {
+        await cloud.reauthenticate(password: password);
+        if (!mounted) return;
+        setState(() {
+          _busy = false;
+          _pin = '';
+          _mode = 'new';
+          _error = null;
+        });
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _busy = false;
+          _error = tr(authError(e));
+        });
+      }
+      return;
+    }
     setState(() => _busy = true);
     final ok = await DriveService.instance.verifyBackupAccount();
     if (!mounted) return;
@@ -245,8 +288,11 @@ class _LockScreenState extends State<LockScreen> {
                           style: Theme.of(context).textTheme.bodySmall,
                           textAlign: TextAlign.center,
                         ),
-                        if (_mode == 'login' && DriveService.instance.enabled)
-                          TextButton(onPressed: _busy ? null : _forgot, child: Text(tr('Owner forgot PIN? Verify with Google'))),
+                        if (_mode == 'login' && (CloudService.instance.signedIn || DriveService.instance.enabled))
+                          TextButton(
+                            onPressed: _busy ? null : _forgot,
+                            child: Text(tr(CloudService.instance.signedIn ? 'Owner forgot PIN? Sign in again' : 'Owner forgot PIN? Verify with Google')),
+                          ),
                       ]),
                     ),
                   ),

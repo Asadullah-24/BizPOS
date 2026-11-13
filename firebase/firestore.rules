@@ -75,12 +75,12 @@ service cloud.firestore {
              .hasOnly(['name', 'category', 'phone', 'city', 'currency', 'devices', 'updatedAt']));
 
       allow delete: if isAdmin();
+    }
 
-      // Payment and subscription history.
-      match /subscriptions/{id} {
-        allow read: if isAdmin() || shopOwner(shopId);
-        allow write: if isAdmin();
-      }
+    // Payment and subscription history (one document per payment).
+    match /subscriptions/{id} {
+      allow read: if isAdmin() || (signedIn() && resource.data.ownerUid == request.auth.uid);
+      allow write: if isAdmin();
     }
 
     // Upgrade requests from shops to the super admin.

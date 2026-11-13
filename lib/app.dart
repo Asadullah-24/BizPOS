@@ -4,16 +4,29 @@ import 'package:provider/provider.dart';
 
 import 'core/app_state.dart';
 import 'core/i18n.dart';
+import 'core/db.dart';
 import 'core/license.dart';
 import 'services/alert_service.dart';
+import 'services/cloud_service.dart';
+import 'ui/screens/auth/welcome_screen.dart';
 import 'services/drive_service.dart';
-import 'ui/screens/activation_screen.dart';
 import 'ui/screens/lock_screen.dart';
 import 'ui/screens/onboarding_screen.dart';
 import 'ui/screens/shell.dart';
 
 ThemeData buildTheme(Brightness b) {
-  final scheme = ColorScheme.fromSeed(seedColor: const Color(0xFF0F766E), brightness: b);
+  final dark = b == Brightness.dark;
+  var scheme = ColorScheme.fromSeed(seedColor: const Color(0xFF14B8A6), brightness: b);
+  if (dark) {
+    scheme = scheme.copyWith(
+      surface: const Color(0xFF0B1220),
+      surfaceContainerLowest: const Color(0xFF070B14),
+      surfaceContainerLow: const Color(0xFF0F172A),
+      surfaceContainer: const Color(0xFF111A2E),
+      surfaceContainerHigh: const Color(0xFF16213A),
+      surfaceContainerHighest: const Color(0xFF1C2944),
+    );
+  }
   const radius = BorderRadius.all(Radius.circular(12));
   return ThemeData(
     useMaterial3: true,
@@ -44,6 +57,13 @@ ThemeData buildTheme(Brightness b) {
       shape: RoundedRectangleBorder(borderRadius: radius),
     ),
     listTileTheme: const ListTileThemeData(minVerticalPadding: 10),
+    scaffoldBackgroundColor: scheme.surface,
+    appBarTheme: AppBarTheme(backgroundColor: scheme.surface, surfaceTintColor: Colors.transparent, centerTitle: false),
+    navigationBarTheme: NavigationBarThemeData(backgroundColor: scheme.surfaceContainerLow, indicatorColor: scheme.primaryContainer),
+    pageTransitionsTheme: const PageTransitionsTheme(builders: {
+      TargetPlatform.android: ZoomPageTransitionsBuilder(),
+      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+    }),
   );
 }
 
@@ -93,9 +113,12 @@ class _BizPosAppState extends State<BizPosApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
-    final lic = context.watch<LicenseService>();
-    final activated = lic.everActivated;
-    final locked = activated && app.onboarded && app.locked;
+    context.watch<LicenseService>();
+    final cloud = context.watch<CloudService>();
+    final locked = app.onboarded && app.locked;
+    final needsAccount = cloud.configured && cloud.ready && !cloud.signedIn && Local.prefs.getBool('offline_mode') != true;
+    final themeKey = app.settings['theme'] ?? 'dark';
+    final mode = switch (themeKey) { 'light' => ThemeMode.light, 'system' => ThemeMode.system, _ => ThemeMode.dark };
     if (locked && !_wasLocked) {
       // Close open screens so the next person starts from the dashboard.
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -109,6 +132,7 @@ class _BizPosAppState extends State<BizPosApp> with WidgetsBindingObserver {
       debugShowCheckedModeBanner: false,
       theme: buildTheme(Brightness.light),
       darkTheme: buildTheme(Brightness.dark),
+      themeMode: mode,
       locale: Locale(app.language),
       supportedLocales: [for (final l in I18n.languages.keys) Locale(l)],
       localizationsDelegates: const [
@@ -116,10 +140,8 @@ class _BizPosAppState extends State<BizPosApp> with WidgetsBindingObserver {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      // Only the super admin can activate a phone; nothing else opens before that.
-      home: !activated
-          ? const ActivationScreen()
-          : (app.onboarded ? const Shell() : const OnboardingScreen()),
+      // Free to start: create an account (or go offline), set up the shop, sell.
+      home: app.onboarded ? const Shell() : (needsAccount ? const WelcomeScreen() : const OnboardingScreen()),
       // The lock screen sits above every route, so locking never loses the
       // screen underneath and nothing behind it can be reached. It has its own
       // navigator so the super admin screens can open from it.

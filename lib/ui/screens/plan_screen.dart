@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../core/access.dart';
 import '../../core/format.dart';
 import '../../core/i18n.dart';
 import '../../core/license.dart';
 import '../../core/packages.dart';
 import '../../services/ads_service.dart';
 import '../../services/alert_service.dart';
+import '../../services/cloud_service.dart';
 import '../common.dart';
 import 'activation_screen.dart';
+import 'auth/welcome_screen.dart';
 import 'scanner_screen.dart';
-import 'super_admin/super_admin_console.dart';
 
-/// Shop side: current plan, paid features, credits and upgrade codes.
+/// Shop side: current plan, packages, 24-hour ad unlocks and offline codes.
 class PlanScreen extends StatefulWidget {
   const PlanScreen({super.key});
 
@@ -32,74 +35,121 @@ class _PlanScreenState extends State<PlanScreen> {
     });
   }
 
-  Future<void> _watchAd() async {
+  Future<void> _unlock(String feature) async {
     setState(() => _busy = true);
-    await guard(context, () async {
-      final got = await AdsService.watchForCredits();
-      if (mounted) showSnack(context, got > 0 ? '+$got ${tr('credits')}' : tr('Watch the whole ad to earn credits.'));
-    });
-    if (mounted) setState(() => _busy = false);
+    var earned = false;
+    await guard(context, () async => earned = await AdsService.unlock(feature));
+    if (!mounted) return;
+    setState(() => _busy = false);
+    showSnack(context, earned ? tr('Unlocked for 24 hours') : tr('Watch the whole ad to unlock.'), error: !earned);
+  }
+
+  Future<void> _request(Package p) async {
+    final ok = await guard(context, () => CloudService.instance.requestUpgrade(p));
+    if (!ok || !mounted) return;
+    showSnack(context, tr('Request sent. BizPOS will activate it after payment.'));
+    VendorContact.whatsapp('I requested the ${p.name} plan (${p.price}) for ${CloudService.instance.shop?['name'] ?? 'my shop'}. '
+        'Device ${LicenseService.instance.deviceCodePretty}.');
   }
 
   @override
   Widget build(BuildContext context) {
-    final lic = context.watch<LicenseService>();
+    final access = context.watch<Access>();
+    final cloud = context.watch<CloudService>();
+    final lic = LicenseService.instance;
     final cs = Theme.of(context).colorScheme;
-    final status = !lic.active
-        ? tr('Expired')
-        : (lic.planExpires == 0 ? tr('Lifetime') : '${tr('Valid until')} ${Fmt.date(lic.planExpires)} (${lic.daysLeft} ${tr('days left')})');
+    final status = !access.isPaid
+        ? tr('Free with ads')
+        : (access.expiresAt == 0 ? tr('Lifetime') : '${tr('Valid until')} ${Fmt.date(access.expiresAt)} (${access.daysLeft} ${tr('days left')})');
     return Scaffold(
       appBar: AppBar(title: Text(tr('Plan and upgrades'))),
       body: ListView(padding: const EdgeInsets.all(12), children: [
         Card(
-          color: lic.active ? cs.primaryContainer : cs.errorContainer,
+          color: access.blocked ? cs.errorContainer : (access.isPaid ? cs.primaryContainer : cs.surfaceContainerHighest),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(tr(lic.plan.name), style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-              Text(status),
-              if (lic.storeName != null) Text('${tr('Shop')}: ${lic.storeName}'),
+              Text(tr(access.planName), style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+              Text(access.blocked ? tr('Blocked. Contact BizPOS support.') : status),
               Text('${tr('Device code')}: ${lic.deviceCodePretty}'),
             ]),
           ),
         ),
-        const SectionTitle('Paid features'),
+        const SectionTitle('Features'),
         for (final f in Feature.all)
           ListTile(
             dense: true,
-            leading: Icon(lic.has(f) ? Icons.check_circle : Icons.lock, color: lic.has(f) ? Colors.green : cs.outline),
+            leading: Icon(access.has(f) ? Icons.check_circle : Icons.lock, color: access.has(f) ? Colors.green : cs.outline),
             title: Text(tr(Feature.labels[f]!)),
+            subtitle: !access.paidHas(f) && access.unlockedUntil(f) > lic.now()
+                ? Text('${tr('Unlocked until')} ${DateFormat('dd MMM, hh:mm a').format(DateTime.fromMillisecondsSinceEpoch(access.unlockedUntil(f)))}')
+                : null,
+            trailing: access.has(f) || !Feature.adUnlockable.contains(f)
+                ? null
+                : TextButton.icon(
+                    onPressed: _busy ? null : () => _unlock(f),
+                    icon: const Icon(Icons.ondemand_video, size: 18),
+                    label: Text(tr('24h')),
+                  ),
           ),
-        const SectionTitle('Voice credits'),
+        const SectionTitle('Plans'),
+        if (!cloud.configured || !cloud.ready)
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text(tr('Online plans need an internet connection. You can also use an unlock code below.')))
+        else if (!cloud.signedIn)
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.login),
+              title: Text(tr('Sign in to buy a plan')),
+              subtitle: Text(tr('Your plan stays with your account, even on a new phone.')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WelcomeScreen(linkOnly: true))),
+            ),
+          )
+        else
+          StreamBuilder<List<Package>>(
+            stream: cloud.packages(),
+            builder: (ctx, snap) {
+              final list = snap.data ?? [];
+              if (snap.connectionState == ConnectionState.waiting && list.isEmpty) {
+                return const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator()));
+              }
+              if (list.isEmpty) return Text(tr('No plans published yet.'));
+              return Column(children: [
+                for (final p in list)
+                  Card(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Row(children: [
+                          Expanded(
+                            child: Text(p.name, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                          ),
+                          Text(p.price, style: TextStyle(color: cs.primary, fontWeight: FontWeight.w700)),
+                        ]),
+                        if (p.description.isNotEmpty) Text(p.description),
+                        for (final f in p.features) Text('• ${tr(Feature.labels[f] ?? f)}'),
+                        if (p.adFree) Text('• ${tr('No ads')}'),
+                        Text('• ${p.days == 0 ? tr('Lifetime') : '${p.days} ${tr('days')}'}'),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: AlignmentDirectional.centerEnd,
+                          child: FilledButton.tonal(onPressed: () => _request(p), child: Text(tr('Request this plan'))),
+                        ),
+                      ]),
+                    ),
+                  ),
+              ]);
+            },
+          ),
+        const SectionTitle('Unlock code (offline)'),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Text(lic.has(Feature.voice) ? tr('Unlimited (Pro)') : '${Fmt.qty(lic.credits)} ${tr('credits')}',
-                  style: Theme.of(context).textTheme.headlineSmall),
+              Text(tr('No internet at the shop? Your BizPOS agent can give a signed code for this phone.')),
               const SizedBox(height: 8),
-              FilledButton.tonalIcon(
-                onPressed: _busy ? null : _watchAd,
-                icon: const Icon(Icons.ondemand_video),
-                label: Text('${tr('Watch an ad')} (+${Credits.perAd})'),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () => VendorContact.whatsapp('I want to buy BizPOS voice credits. Device code: ${lic.deviceCodePretty}'),
-                icon: const Icon(Icons.shopping_cart),
-                label: Text(tr('Buy credits')),
-              ),
-            ]),
-          ),
-        ),
-        const SectionTitle('Unlock code'),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Text(tr('After payment your BizPOS agent sends a code or QR. Show them this QR so they get the right device.')),
-              const SizedBox(height: 8),
-              Center(child: QrImageView(data: deviceQr(lic.deviceCode), size: 140, backgroundColor: Colors.white)),
+              Center(child: QrImageView(data: deviceQr(lic.deviceCode), size: 130, backgroundColor: Colors.white)),
               const SizedBox(height: 8),
               FilledButton.icon(
                 onPressed: () async => _apply(await ScannerScreen.scan(context)),
@@ -112,17 +162,16 @@ class _PlanScreenState extends State<PlanScreen> {
                 icon: const Icon(Icons.key),
                 label: Text(tr('Enter code')),
               ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () => VendorContact.whatsapp('I want to upgrade BizPOS to ${Plans.pro.name}. Device code: ${lic.deviceCodePretty}'),
-                icon: const Icon(Icons.chat, color: Colors.green),
-                label: Text('${tr('Upgrade on WhatsApp')} ${Vendor.pretty(lic.phone)}'),
-              ),
             ]),
           ),
         ),
-        const SectionTitle('Packages'),
-        const PackagesList(shrink: true),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => VendorContact.whatsapp('I want to upgrade BizPOS. Device code: ${lic.deviceCodePretty}'),
+          icon: const Icon(Icons.chat, color: Colors.green),
+          label: Text('${tr('WhatsApp')} ${Vendor.pretty(lic.phone)}'),
+        ),
+        const SizedBox(height: 24),
       ]),
     );
   }

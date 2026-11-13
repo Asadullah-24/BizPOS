@@ -57,7 +57,7 @@ test('super admin can manage every shop and package', async () => {
   await assertSucceeds(getDoc(doc(db, 'shops/s1')));
   await assertSucceeds(updateDoc(doc(db, 'shops/s1'), { plan: 'pro', features: ['voice'], expiresAt: 1 }));
   await assertSucceeds(setDoc(doc(db, 'packages/p2'), { name: 'New' }));
-  await assertSucceeds(setDoc(doc(db, 'shops/s1/subscriptions/x'), { amount: 1000 }));
+  await assertSucceeds(setDoc(doc(db, 'subscriptions/x'), { ownerUid: 'alice', shopId: 's1', amount: 1000 }));
   await assertSucceeds(setDoc(doc(db, 'settings/app'), { footer: 'Powered by BizPOS' }));
 });
 
@@ -66,7 +66,10 @@ test('only admins write packages, settings and subscriptions', async () => {
   await assertSucceeds(getDoc(doc(anon(), 'packages/p1')));
   await assertFails(setDoc(doc(db, 'packages/p1'), { name: 'Free Pro' }));
   await assertFails(setDoc(doc(db, 'settings/app'), { footer: 'hacked' }));
-  await assertFails(setDoc(doc(db, 'shops/s1/subscriptions/x'), { amount: 0 }));
+  await assertFails(setDoc(doc(db, 'subscriptions/x'), { ownerUid: 'alice', amount: 0 }));
+  await env.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), 'subscriptions/y'), { ownerUid: 'alice', amount: 500 }));
+  await assertSucceeds(getDoc(doc(db, 'subscriptions/y')));
+  await assertFails(getDoc(doc(as('bob'), 'subscriptions/y')));
 });
 
 test('nobody can make themselves super admin', async () => {

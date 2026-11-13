@@ -7,6 +7,9 @@ import 'package:printing/printing.dart';
 import '../core/app_state.dart';
 import '../core/db.dart';
 import '../core/format.dart';
+import '../core/license.dart';
+import '../core/packages.dart';
+import 'product_service.dart';
 import 'purchase_service.dart';
 import 'sales_service.dart';
 
@@ -142,9 +145,13 @@ class InvoicePdf {
         );
 
     final s = app.settings;
+    final logoFile = await ImageStore.file(s['logo']);
+    final logo = logoFile == null ? null : pw.MemoryImage(await logoFile.readAsBytes());
+    final lic = LicenseService.instance;
     final header = pw.Column(
       crossAxisAlignment: roll ? pw.CrossAxisAlignment.center : pw.CrossAxisAlignment.start,
       children: [
+        if (logo != null) pw.Image(logo, height: roll ? 40 : 56),
         pw.Text(app.businessName, style: big),
         if ((s['business_address'] ?? '').isNotEmpty) pw.Text(s['business_address']!, style: small),
         if ((s['business_phone'] ?? '').isNotEmpty) pw.Text('Phone: ${s['business_phone']}', style: small),
@@ -223,6 +230,11 @@ class InvoicePdf {
           ],
           pw.SizedBox(height: roll ? 8 : 24),
           pw.Center(child: pw.Text(app.invoiceFooter, style: small, textAlign: pw.TextAlign.center)),
+          pw.SizedBox(height: 4),
+          pw.Center(
+            child: pw.Text('${lic.footer} - ${Vendor.pretty(lic.phone)}',
+                style: pw.TextStyle(fontSize: roll ? 6 : 8, color: PdfColors.grey600)),
+          ),
         ],
       ),
     ));

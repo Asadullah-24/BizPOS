@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../core/app_state.dart';
 import '../../core/business_templates.dart';
 import '../../core/i18n.dart';
+import '../../core/license.dart';
 import '../../services/auth_service.dart';
 import '../../services/backup_service.dart';
 import '../../services/drive_service.dart';
@@ -43,6 +44,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _pin2 = TextEditingController();
   BusinessTemplate _template = businessTemplates.first;
   String _lang = 'en';
+
+  @override
+  void initState() {
+    super.initState();
+    _business.text = LicenseService.instance.storeName ?? '';
+  }
 
   Future<void> _setLang(String l) async {
     setState(() => _lang = l);

@@ -70,6 +70,11 @@ def app_gradle(s: str) -> str:
             "signingConfig = signingConfigs.debug",
             "signingConfig = keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug",
         )
+    # flutter_local_notifications needs Java 8+ API desugaring.
+    if "coreLibraryDesugaringEnabled" not in s:
+        s = re.sub(r"(compileOptions\s*\{)", r"\1\n        coreLibraryDesugaringEnabled = true", s, count=1)
+    if "desugar_jdk_libs" not in s:
+        s += "\ndependencies {\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'\n}\n"
     return s
 
 
@@ -77,6 +82,8 @@ ANDROID_PERMISSIONS = [
     '<uses-permission android:name="android.permission.INTERNET"/>',
     '<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>',
     '<uses-permission android:name="android.permission.CAMERA"/>',
+    '<uses-permission android:name="android.permission.RECORD_AUDIO"/>',
+    '<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>',
     '<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>',
     '<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30"/>',
     '<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30"/>',
@@ -84,13 +91,48 @@ ANDROID_PERMISSIONS = [
     '<uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation"/>',
     '<uses-feature android:name="android.hardware.camera" android:required="false"/>',
     '<uses-feature android:name="android.hardware.bluetooth" android:required="false"/>',
+    '<uses-feature android:name="android.hardware.microphone" android:required="false"/>',
 ]
+
+# Google's public AdMob test app id. Replace with your own before publishing.
+ADMOB_ANDROID_APP_ID = "ca-app-pub-3940256099942544~3347511713"
+
+ANDROID_QUERIES = """    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO"/>
+            <data android:scheme="sms"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL"/>
+            <data android:scheme="tel"/>
+        </intent>
+    </queries>
+"""
 
 
 def manifest(s: str) -> str:
-    if "android.permission.CAMERA" not in s:
-        block = "\n    ".join(ANDROID_PERMISSIONS)
-        s = s.replace("<application", block + "\n    <application", 1)
+    for perm in ANDROID_PERMISSIONS:
+        name = re.search(r'android:name="([^"]+)"', perm).group(1)
+        if f'"{name}"' not in s:
+            s = s.replace("<application", perm + "\n    <application", 1)
+    if "com.google.android.gms.ads.APPLICATION_ID" not in s:
+        meta = (
+            '        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID"\n'
+            f'            android:value="{ADMOB_ANDROID_APP_ID}"/>\n'
+        )
+        s = s.replace("</application>", meta + "    </application>", 1)
+    if "android.speech.RecognitionService" not in s:
+        if "<queries>" in s:
+            s = s.replace("<queries>", ANDROID_QUERIES.strip().replace("</queries>", "").replace("<queries>", "<queries>", 1), 1)
+        else:
+            s = s.replace("</manifest>", ANDROID_QUERIES + "</manifest>", 1)
     s = re.sub(r'android:label="[^"]*"', f'android:label="{APP_NAME}"', s, count=1)
     return s
 
@@ -98,6 +140,10 @@ def manifest(s: str) -> str:
 # ---------------------------------------------------------------- iOS
 IOS_KEYS = {
     "NSCameraUsageDescription": "The camera is used to scan product barcodes and take product photos.",
+    "NSMicrophoneUsageDescription": "The microphone is used for voice stock updates.",
+    "NSSpeechRecognitionUsageDescription": "Speech recognition turns voice commands into stock updates.",
+    # Google's public AdMob test app id. Replace with your own before publishing.
+    "GADApplicationIdentifier": "ca-app-pub-3940256099942544~1458002511",
     "NSPhotoLibraryUsageDescription": "Photos are used as product images.",
     "NSBluetoothAlwaysUsageDescription": "Bluetooth is used to print receipts on thermal printers.",
     "NSBluetoothPeripheralUsageDescription": "Bluetooth is used to print receipts on thermal printers.",
@@ -109,6 +155,12 @@ def info_plist(s: str) -> str:
     for key, value in IOS_KEYS.items():
         if key not in s:
             additions += f"\t<key>{key}</key>\n\t<string>{value}</string>\n"
+    if "LSApplicationQueriesSchemes" not in s:
+        additions += (
+            "\t<key>LSApplicationQueriesSchemes</key>\n\t<array>\n"
+            "\t\t<string>whatsapp</string>\n\t\t<string>https</string>\n"
+            "\t\t<string>tel</string>\n\t\t<string>sms</string>\n\t</array>\n"
+        )
     if additions:
         idx = s.rfind("</dict>")
         s = s[:idx] + additions + s[idx:]

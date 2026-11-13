@@ -7,6 +7,8 @@ import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import '../core/app_state.dart';
 import '../core/db.dart';
 import '../core/format.dart';
+import '../core/license.dart';
+import '../core/packages.dart';
 import 'invoice_service.dart';
 
 class PrinterDevice {
@@ -95,6 +97,8 @@ class PrinterService {
     if (d.due.abs() > 0.009) b += kv('Balance due', d.due, bold: true);
     b += g.hr();
     b += g.text(_ascii(app.invoiceFooter), styles: const PosStyles(align: PosAlign.center));
+    final lic = LicenseService.instance;
+    b += g.text(_ascii('${lic.footer} ${Vendor.pretty(lic.phone)}'), styles: const PosStyles(align: PosAlign.center, fontType: PosFontType.fontB));
     b += g.feed(3);
     b += g.cut();
     return b;

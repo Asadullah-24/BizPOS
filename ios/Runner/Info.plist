@@ -53,5 +53,18 @@
 	<string>Bluetooth is used to print receipts on thermal printers.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>Bluetooth is used to print receipts on thermal printers.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>The microphone is used for voice stock updates.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Speech recognition turns voice commands into stock updates.</string>
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>whatsapp</string>
+		<string>https</string>
+		<string>tel</string>
+		<string>sms</string>
+	</array>
 </dict>
 </plist>

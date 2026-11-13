@@ -4,7 +4,10 @@ import 'package:provider/provider.dart';
 import '../../core/app_state.dart';
 import '../../core/business_templates.dart';
 import '../../core/i18n.dart';
+import '../../core/license.dart';
+import '../../core/packages.dart';
 import '../../core/permissions.dart';
+import '../brand.dart';
 import 'accounts_screen.dart';
 import 'backup_screen.dart';
 import 'categories_screen.dart';
@@ -15,13 +18,21 @@ import 'parties_screen.dart';
 import 'purchases_screen.dart';
 import 'reports_screen.dart';
 import 'sales_screen.dart';
+import 'plan_screen.dart';
+import 'reminders_screen.dart';
 import 'settings_screen.dart';
+import 'stock_scan_screen.dart';
+import 'store_qr_screen.dart';
+import 'voice_stock_screen.dart';
 
 class _Item {
-  const _Item(this.label, this.icon, this.page);
+  const _Item(this.label, this.icon, this.page, {this.feature});
   final String label;
   final IconData icon;
   final Widget Function() page;
+
+  /// Paid feature needed to open the page.
+  final String? feature;
 }
 
 class MoreScreen extends StatelessWidget {
@@ -30,9 +41,16 @@ class MoreScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
+    context.watch<LicenseService>();
     final items = <_Item>[
       if (app.allowed(Mod.inventory, Perm.inventory) || app.allowed(Mod.inventory, Perm.products))
         _Item('Inventory', Icons.warehouse_outlined, () => const InventoryScreen()),
+      if (app.allowed(Mod.inventory, Perm.inventory) && app.hasModule(Mod.barcode))
+        _Item('Scan stock', Icons.qr_code_scanner, () => const StockScanScreen()),
+      if (app.allowed(Mod.inventory, Perm.inventory))
+        _Item('Voice stock', Icons.mic, () => const VoiceStockScreen()),
+      if (app.allowed(Mod.customers, Perm.customers))
+        _Item('Reminders', Icons.notifications_active_outlined, () => const RemindersScreen(), feature: Feature.reminders),
       if (app.can(Perm.products)) _Item('Categories', Icons.category_outlined, () => const CategoriesScreen(kind: 'product')),
       if (app.allowed(Mod.customers, Perm.customers)) _Item('Customers', Icons.people_outline, () => const PartiesScreen(kind: 'customer')),
       if (app.allowed(Mod.suppliers, Perm.suppliers))
@@ -45,6 +63,8 @@ class MoreScreen extends StatelessWidget {
       if (app.allowed(Mod.employees, Perm.employees)) _Item('Employees', Icons.badge_outlined, () => const EmployeesScreen()),
       if (app.can(Perm.employees)) _Item('Activity log', Icons.history, () => const ActivityLogScreen()),
       if (app.can(Perm.backup)) _Item('Backup & restore', Icons.cloud_outlined, () => const BackupScreen()),
+      _Item('Shop QR', Icons.qr_code_2, () => const StoreQrScreen()),
+      _Item('Plan & upgrades', Icons.workspace_premium_outlined, () => const PlanScreen()),
       _Item('Settings', Icons.settings_outlined, () => const SettingsScreen()),
     ];
     final cols = (MediaQuery.sizeOf(context).width / 150).floor().clamp(3, 6).toInt();
@@ -69,11 +89,18 @@ class MoreScreen extends StatelessWidget {
               Card(
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => it.page())),
+                  onTap: () {
+                    if (it.feature != null && !requireFeature(context, it.feature!)) return;
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => it.page()));
+                  },
                   child: Padding(
                     padding: const EdgeInsets.all(8),
                     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(it.icon, size: 34, color: Theme.of(context).colorScheme.primary),
+                      Stack(clipBehavior: Clip.none, children: [
+                        Icon(it.icon, size: 34, color: Theme.of(context).colorScheme.primary),
+                        if (it.feature != null && !LicenseService.instance.has(it.feature!))
+                          const Positioned(right: -10, top: -6, child: Icon(Icons.lock, size: 14, color: Colors.amber)),
+                      ]),
                       const SizedBox(height: 8),
                       Text(tr(it.label), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
                     ]),

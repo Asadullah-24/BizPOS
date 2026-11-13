@@ -7,7 +7,7 @@
 /// * [schemaVersion] must equal the highest key in [migrations].
 library;
 
-const int schemaVersion = 1;
+const int schemaVersion = 2;
 
 const String _common = '''
   id TEXT PRIMARY KEY,
@@ -38,6 +38,8 @@ const List<String> syncTables = [
   'expenses',
   'payments',
   'activity_logs',
+  'licenses',
+  'credit_ledger',
 ];
 
 final Map<int, List<String>> migrations = {
@@ -236,5 +238,33 @@ final Map<int, List<String>> migrations = {
     'CREATE INDEX idx_payments_party ON payments(party_id)',
     'CREATE INDEX idx_payments_ref ON payments(ref_id)',
     'CREATE INDEX idx_logs_created ON activity_logs(created_at)',
+  ],
+  2: [
+    'ALTER TABLE employees ADD COLUMN totp_secret TEXT',
+    '''CREATE TABLE licenses ($_common,
+      code TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      device TEXT
+    )''',
+    '''CREATE TABLE credit_ledger ($_common,
+      amount REAL NOT NULL,
+      reason TEXT,
+      ref TEXT
+    )''',
+    // Super admin's own register of shops. Not synced to shop backups.
+    '''CREATE TABLE sa_stores ($_common,
+      store_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      owner_phone TEXT,
+      category TEXT,
+      device TEXT NOT NULL,
+      plan TEXT,
+      features TEXT,
+      expires INTEGER NOT NULL DEFAULT 0,
+      credits INTEGER NOT NULL DEFAULT 0,
+      code TEXT NOT NULL,
+      notes TEXT
+    )''',
+    'CREATE INDEX idx_sa_stores_device ON sa_stores(device)',
   ],
 };

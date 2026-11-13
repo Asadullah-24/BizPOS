@@ -28,8 +28,11 @@ class _VariantRow {
 }
 
 class ProductForm extends StatefulWidget {
-  const ProductForm({super.key, this.productId});
+  const ProductForm({super.key, this.productId, this.initialBarcode});
   final String? productId;
+
+  /// Prefills the barcode when a product is created from an unknown scan.
+  final String? initialBarcode;
 
   @override
   State<ProductForm> createState() => _ProductFormState();
@@ -106,6 +109,7 @@ class _ProductFormState extends State<ProductForm> {
       }
     } else {
       _sku.text = await ProductService.nextSku();
+      _barcode.text = widget.initialBarcode ?? '';
       _unit.text = app.businessType?.units.firstOrNull ?? 'pcs';
       _track = app.hasModule(Mod.inventory);
       for (final f in fields) {

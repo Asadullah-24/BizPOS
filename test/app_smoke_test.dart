@@ -5,6 +5,7 @@ import 'package:bizpos/core/app_state.dart';
 import 'package:bizpos/core/business_templates.dart';
 import 'package:bizpos/core/db.dart';
 import 'package:bizpos/core/ids.dart';
+import 'package:bizpos/core/license.dart';
 import 'package:bizpos/models/models.dart';
 import 'package:bizpos/services/auth_service.dart';
 import 'package:bizpos/services/drive_service.dart';
@@ -27,6 +28,7 @@ Widget app() => MultiProvider(
       providers: [
         ChangeNotifierProvider<AppState>.value(value: AppState.instance),
         ChangeNotifierProvider<DriveService>.value(value: DriveService.instance),
+        ChangeNotifierProvider<LicenseService>.value(value: LicenseService.instance),
       ],
       child: const BizPosApp(),
     );
@@ -60,6 +62,19 @@ void main() {
     Db.fileName = 'smoke_test.db';
     await Db.instance.init();
     await Db.instance.wipe();
+    // Activate this test device with the public test key (see license_test.dart).
+    LicenseKeys.trusted.add('bX-2DqGStn1nvQ5vvJ5hUBRlI4awixygow2VCWd3s6U');
+    SuperAdmin.key = await LicenseKeys.derive('test-password-123');
+    await LicenseService.instance.load();
+    await LicenseService.instance.apply(await SuperAdmin.issue(
+      type: 'act',
+      device: LicenseService.instance.deviceCode,
+      plan: 'pro',
+      storeName: 'Smoke Shop',
+      expires: nowMs() + 86400000 * 30,
+      credits: 20,
+    ));
+    SuperAdmin.key = null;
     await SetupService.createBusiness(
       businessName: 'Smoke Shop',
       template: businessTemplates.firstWhere((t) => t.key == 'clothing'),
@@ -134,8 +149,9 @@ void main() {
     }
 
     for (final label in [
-      'Inventory', 'Categories', 'Customers', 'Suppliers', 'Purchases', 'Expenses', 'Accounts',
-      'Reports', 'Returns', 'Employees', 'Activity log', 'Backup & restore', 'Settings',
+      'Inventory', 'Scan stock', 'Voice stock', 'Reminders', 'Categories', 'Customers', 'Suppliers', 'Purchases',
+      'Expenses', 'Accounts', 'Reports', 'Returns', 'Employees', 'Activity log', 'Backup & restore', 'Shop QR',
+      'Plan & upgrades', 'Settings',
     ]) {
       await openFromMore(t, label);
     }

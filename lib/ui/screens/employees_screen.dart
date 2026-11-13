@@ -84,6 +84,7 @@ class _EmployeeFormState extends State<EmployeeForm> {
   final _pin = TextEditingController();
   late String? _roleId = widget.employee?.roleId;
   late bool _active = widget.employee?.active ?? true;
+  bool _reset2fa = false;
   List<Role> _roleList = [];
 
   bool get _isOwner => widget.employee?.isOwner ?? false;
@@ -118,6 +119,7 @@ class _EmployeeFormState extends State<EmployeeForm> {
       if (!_isOwner) 'role_id': _roleId,
       if (!_isOwner) 'active': _active ? 1 : 0,
       if (pin.isNotEmpty) ...AuthService.pinColumns(pin),
+      if (_reset2fa) 'totp_secret': null,
     };
     if (isNew) {
       final id = await Db.instance.s.insert('employees', row);
@@ -170,6 +172,13 @@ class _EmployeeFormState extends State<EmployeeForm> {
           maxLength: 8,
           decoration: InputDecoration(labelText: tr(widget.employee == null ? 'PIN (4-8 digits)' : 'New PIN (leave empty to keep)')),
         ),
+        if (widget.employee != null)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(tr('Turn off two-factor sign-in (lost phone)')),
+            value: _reset2fa,
+            onChanged: (v) => setState(() => _reset2fa = v ?? false),
+          ),
         if (!_isOwner)
           SwitchListTile(
             contentPadding: EdgeInsets.zero,

@@ -5,6 +5,7 @@ import '../../core/app_state.dart';
 import '../../core/business_templates.dart';
 import '../../core/format.dart';
 import '../../core/i18n.dart';
+import '../../core/license.dart';
 import '../../core/permissions.dart';
 import '../../models/models.dart';
 import '../../services/cart.dart';
@@ -12,6 +13,7 @@ import '../../services/product_service.dart';
 import '../common.dart';
 import 'checkout_screen.dart';
 import 'parties_screen.dart';
+import 'plan_screen.dart';
 import 'scanner_screen.dart';
 
 /// The cart lives outside the screen so it survives tab switches.
@@ -267,6 +269,11 @@ class _PosScreenState extends State<PosScreen> {
 
   Future<void> _checkout(BuildContext context) async {
     if (pos.cart.isEmpty) return;
+    if (!LicenseService.instance.canSell) {
+      showSnack(context, tr('Your plan has ended. Renew it to keep selling.'), error: true);
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanScreen()));
+      return;
+    }
     await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const CheckoutScreen()));
   }
 

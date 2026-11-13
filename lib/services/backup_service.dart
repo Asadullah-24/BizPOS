@@ -4,10 +4,12 @@ import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:sqflite/sqflite.dart';
 
 import '../core/app_state.dart';
 import '../core/db.dart';
 import '../core/ids.dart';
+import '../core/license.dart';
 import '../core/migrations.dart';
 import 'inventory_service.dart';
 import 'product_service.dart';
@@ -101,9 +103,23 @@ class BackupService {
     return replace ? replaceWith(data) : merge(data);
   }
 
+  /// Wipes this phone and restores [data]. This phone's own activation codes
+  /// and credits are kept, so a restore never deactivates the device.
   static Future<MergeResult> replaceWith(Map<String, dynamic> data) async {
+    final keepLicenses = await Db.instance.raw.rawQuery('SELECT * FROM licenses');
+    final keepCredits = await Db.instance.raw.rawQuery('SELECT * FROM credit_ledger');
     await Db.instance.wipe();
-    return merge(data);
+    final result = await merge(data);
+    await Db.instance.raw.transaction((txn) async {
+      for (final r in keepLicenses) {
+        await txn.insert('licenses', r, conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
+      for (final r in keepCredits) {
+        await txn.insert('credit_ledger', r, conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
+    });
+    await LicenseService.instance.load();
+    return result;
   }
 
   static Future<MergeResult> merge(Map<String, dynamic> data) async {
@@ -177,6 +193,7 @@ class BackupService {
 
     Db.instance.notifyChanged();
     await AppState.instance.load();
+    await LicenseService.instance.load();
     return result;
   }
 }

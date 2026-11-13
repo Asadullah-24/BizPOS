@@ -4,7 +4,10 @@ import 'package:provider/provider.dart';
 
 import 'core/app_state.dart';
 import 'core/i18n.dart';
+import 'core/license.dart';
+import 'services/alert_service.dart';
 import 'services/drive_service.dart';
+import 'ui/screens/activation_screen.dart';
 import 'ui/screens/lock_screen.dart';
 import 'ui/screens/onboarding_screen.dart';
 import 'ui/screens/shell.dart';
@@ -78,16 +81,21 @@ class _BizPosAppState extends State<BizPosApp> with WidgetsBindingObserver {
       }
       _pausedAt = null;
       DriveService.instance.autoBackup();
+      LicenseService.instance.load();
+      if (!app.locked) AlertService.runChecks();
     }
   }
 
   final _navKey = GlobalKey<NavigatorState>();
+  final _lockNavKey = GlobalKey<NavigatorState>();
   bool _wasLocked = true;
 
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
-    final locked = app.onboarded && app.locked;
+    final lic = context.watch<LicenseService>();
+    final activated = lic.everActivated;
+    final locked = activated && app.onboarded && app.locked;
     if (locked && !_wasLocked) {
       // Close open screens so the next person starts from the dashboard.
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -108,12 +116,24 @@ class _BizPosAppState extends State<BizPosApp> with WidgetsBindingObserver {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: app.onboarded ? const Shell() : const OnboardingScreen(),
+      // Only the super admin can activate a phone; nothing else opens before that.
+      home: !activated
+          ? const ActivationScreen()
+          : (app.onboarded ? const Shell() : const OnboardingScreen()),
       // The lock screen sits above every route, so locking never loses the
-      // screen underneath and nothing behind it can be reached.
+      // screen underneath and nothing behind it can be reached. It has its own
+      // navigator so the super admin screens can open from it.
       builder: (context, child) => Stack(fit: StackFit.expand, children: [
         if (child != null) child,
-        if (locked) const Positioned.fill(child: LockScreen()),
+        if (locked)
+          Positioned.fill(
+            child: HeroControllerScope.none(
+              child: Navigator(
+                key: _lockNavKey,
+                onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => const LockScreen()),
+              ),
+            ),
+          ),
       ]),
     );
   }

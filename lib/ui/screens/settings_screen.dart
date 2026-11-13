@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
@@ -8,8 +11,13 @@ import '../../core/i18n.dart';
 import '../../core/permissions.dart';
 import '../../models/models.dart';
 import '../../services/auth_service.dart';
+import '../../core/license.dart';
 import '../../services/printer_service.dart';
+import '../../services/product_service.dart';
 import '../common.dart';
+import 'plan_screen.dart';
+import 'super_admin/super_admin_login.dart';
+import 'two_factor_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -65,6 +73,18 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(children: [
         if (admin) ...[
           const SectionTitle('Business profile'),
+          ListTile(
+            leading: ProductThumb(image: s['logo'], name: app.businessName, size: 40),
+            title: Text(tr('Business logo')),
+            subtitle: Text(tr('Shown on the login screen, dashboard and invoices')),
+            onTap: () async {
+              final x = await ImagePicker().pickImage(source: ImageSource.gallery, maxWidth: 600, maxHeight: 600, imageQuality: 85);
+              if (x == null) return;
+              final name = await ImageStore.save(File(x.path));
+              await app.setSetting('logo', name);
+            },
+            onLongPress: () => app.setSetting('logo', ''),
+          ),
           _textTile(context, 'business_name', 'Business name', Icons.storefront),
           _textTile(context, 'business_phone', 'Phone', Icons.phone),
           _textTile(context, 'business_address', 'Address', Icons.location_on_outlined),
@@ -136,8 +156,20 @@ class SettingsScreen extends StatelessWidget {
           const SectionTitle('Selling'),
           _switch('block_out_of_stock', 'Block selling items that are out of stock'),
         ],
+        const SectionTitle('Plan'),
+        ListTile(
+          leading: const Icon(Icons.workspace_premium_outlined),
+          title: Text(tr('Plan and upgrades')),
+          subtitle: Text(tr(LicenseService.instance.plan.name)),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanScreen())),
+        ),
         const SectionTitle('Security'),
         ListTile(leading: const Icon(Icons.password), title: Text(tr('Change my PIN')), onTap: () => _changePin(context)),
+        ListTile(
+          leading: const Icon(Icons.verified_user_outlined),
+          title: Text(tr('Two-factor sign-in (authenticator)')),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TwoFactorScreen())),
+        ),
         if (admin)
           ListTile(
             leading: const Icon(Icons.timer_outlined),
@@ -159,8 +191,13 @@ class SettingsScreen extends StatelessWidget {
           ),
         const SectionTitle('About'),
         ListTile(
+          leading: const Icon(Icons.admin_panel_settings_outlined),
+          title: Text(tr('Super admin')),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SuperAdminLogin())),
+        ),
+        ListTile(
           leading: const Icon(Icons.info_outline),
-          title: const Text('BizPOS 1.0.0'),
+          title: const Text('BizPOS 1.1.0'),
           subtitle: Text('${tr('Device')} ${Db.instance.deviceId.substring(0, 8).toUpperCase()}'),
         ),
         const SizedBox(height: 24),

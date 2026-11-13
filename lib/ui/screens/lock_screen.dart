@@ -3,12 +3,19 @@ import 'package:flutter/material.dart';
 import '../../core/app_state.dart';
 import '../../core/db.dart';
 import '../../core/i18n.dart';
+import '../../core/totp.dart';
 import '../../models/models.dart';
 import '../../services/activity_log.dart';
+import '../../services/alert_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/drive_service.dart';
+import '../brand.dart';
+import '../common.dart';
+import 'super_admin/super_admin_login.dart';
 
-/// PIN keypad shown above the whole app while nobody is signed in.
+/// Sign-in screen shown above the whole app while nobody is signed in.
+/// PIN keypad, optional authenticator code (2FA), owner PIN recovery with
+/// Google, and the super admin entrance.
 class LockScreen extends StatefulWidget {
   const LockScreen({super.key});
 
@@ -21,9 +28,11 @@ class _LockScreenState extends State<LockScreen> {
   String? _error;
   bool _busy = false;
 
-  /// login | new | confirm (owner PIN reset after Google account check)
+  /// login | totp | new | confirm
   String _mode = 'login';
   String _newPin = '';
+  Employee? _pending;
+  String? _pendingSecret;
 
   @override
   void initState() {
@@ -31,17 +40,34 @@ class _LockScreenState extends State<LockScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => FocusManager.instance.primaryFocus?.unfocus());
   }
 
+  int get _maxLen => _mode == 'totp' ? 6 : 8;
+
   void _press(String d) {
-    if (_busy || _pin.length >= 8) return;
+    if (_busy || _pin.length >= _maxLen) return;
     setState(() {
       _pin += d;
       _error = null;
     });
+    if (_mode == 'totp' && _pin.length == 6) _submit();
   }
 
   void _back() {
-    if (_pin.isEmpty) return;
+    if (_pin.isEmpty) {
+      if (_mode != 'login') {
+        setState(() {
+          _mode = 'login';
+          _pending = null;
+        });
+      }
+      return;
+    }
     setState(() => _pin = _pin.substring(0, _pin.length - 1));
+  }
+
+  Future<void> _finishLogin(Employee e) async {
+    await AppState.instance.login(e);
+    DriveService.instance.start();
+    AlertService.runChecks();
   }
 
   Future<void> _forgot() async {
@@ -82,13 +108,25 @@ class _LockScreenState extends State<LockScreen> {
     if (r == null || !mounted) return;
     final owner = Employee.fromRow(r);
     await Db.instance.s.update('employees', owner.id, AuthService.pinColumns(_pin));
-    await AppState.instance.login(owner);
     await ActivityLog.add('Owner PIN reset with Google account', entity: 'employee', entityId: owner.id);
-    DriveService.instance.start();
+    await _finishLogin(owner);
   }
 
   Future<void> _submit() async {
-    if (_pin.length < 4 || _busy) return;
+    if (_busy) return;
+    if (_mode == 'totp') {
+      if (_pin.length != 6) return;
+      if (Totp.verify(_pendingSecret!, _pin)) {
+        await _finishLogin(_pending!);
+      } else {
+        setState(() {
+          _pin = '';
+          _error = tr('Wrong code');
+        });
+      }
+      return;
+    }
+    if (_pin.length < 4) return;
     if (_mode != 'login') return _resetStep();
     setState(() => _busy = true);
     final e = await AuthService.login(_pin);
@@ -101,95 +139,128 @@ class _LockScreenState extends State<LockScreen> {
       });
       return;
     }
-    await AppState.instance.login(e);
-    DriveService.instance.start();
+    final row = await Db.instance.s.byId('employees', e.id);
+    final secret = row?['totp_secret'] as String?;
+    if (secret != null && secret.isNotEmpty) {
+      setState(() {
+        _busy = false;
+        _pin = '';
+        _pending = e;
+        _pendingSecret = secret;
+        _mode = 'totp';
+      });
+      return;
+    }
+    await _finishLogin(e);
   }
+
+  String get _prompt => switch (_mode) {
+        'totp' => 'Enter the 6-digit authenticator code',
+        'new' => 'Choose a new owner PIN',
+        'confirm' => 'Confirm the new PIN',
+        _ => 'Enter PIN',
+      };
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final app = AppState.instance;
-    Widget key(String label, {VoidCallback? onTap, IconData? icon}) => Padding(
-          padding: const EdgeInsets.all(6),
-          child: SizedBox(
-            width: 76,
-            height: 64,
-            child: FilledButton.tonal(
-              style: FilledButton.styleFrom(padding: EdgeInsets.zero),
-              onPressed: onTap ?? () => _press(label),
-              child: icon != null ? Icon(icon, size: 26) : Text(label, style: const TextStyle(fontSize: 26)),
-            ),
-          ),
-        );
-
-    return Material(
-      color: cs.surface,
-      child: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              CircleAvatar(
-                radius: 34,
-                backgroundColor: cs.primaryContainer,
-                child: Icon(Icons.storefront, size: 36, color: cs.onPrimaryContainer),
-              ),
-              const SizedBox(height: 12),
-              Text(app.businessName, style: Theme.of(context).textTheme.headlineSmall, textAlign: TextAlign.center),
-              const SizedBox(height: 4),
-              Text(
-                tr(_mode == 'new' ? 'Choose a new owner PIN' : (_mode == 'confirm' ? 'Confirm the new PIN' : 'Enter PIN')),
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: List.generate(
-                  _pin.length < 4 ? 4 : _pin.length,
-                  (i) => Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 6),
-                    width: 16,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: i < _pin.length ? cs.primary : cs.outlineVariant,
+    final dots = _mode == 'totp' ? 6 : (_pin.length < 4 ? 4 : _pin.length);
+    return Scaffold(
+      body: BrandBackground(
+        child: SafeArea(
+          child: Column(children: [
+            Expanded(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: GlassCard(
+                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [BoxShadow(color: cs.primary.withOpacity(0.35), blurRadius: 20, offset: const Offset(0, 8))],
+                          ),
+                          child: (app.settings['logo'] ?? '').isNotEmpty
+                              ? ClipOval(child: ProductThumb(image: app.settings['logo'], name: app.businessName, size: 76))
+                              : CircleAvatar(
+                                  radius: 38,
+                                  backgroundColor: cs.primaryContainer,
+                                  child: Icon(Icons.storefront, size: 40, color: cs.onPrimaryContainer),
+                                ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(app.businessName, style: Theme.of(context).textTheme.headlineSmall, textAlign: TextAlign.center),
+                        const SizedBox(height: 4),
+                        Text(tr(_prompt), style: Theme.of(context).textTheme.bodyLarge, textAlign: TextAlign.center),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: List.generate(
+                            dots,
+                            (i) => AnimatedContainer(
+                              duration: const Duration(milliseconds: 120),
+                              margin: const EdgeInsets.symmetric(horizontal: 5),
+                              width: 15,
+                              height: 15,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: i < _pin.length ? cs.primary : cs.outlineVariant,
+                                boxShadow: i < _pin.length ? [BoxShadow(color: cs.primary.withOpacity(0.5), blurRadius: 6)] : null,
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          height: 30,
+                          child: Center(child: Text(_error ?? '', style: TextStyle(color: cs.error, fontWeight: FontWeight.w600))),
+                        ),
+                        Directionality(
+                          textDirection: TextDirection.ltr,
+                          child: Column(mainAxisSize: MainAxisSize.min, children: [
+                            for (final row in const [
+                              ['1', '2', '3'],
+                              ['4', '5', '6'],
+                              ['7', '8', '9'],
+                            ])
+                              Row(mainAxisSize: MainAxisSize.min, children: [
+                                for (final d in row) Padding(padding: const EdgeInsets.all(6), child: Key3D(label: d, onTap: () => _press(d))),
+                              ]),
+                            Row(mainAxisSize: MainAxisSize.min, children: [
+                              Padding(padding: const EdgeInsets.all(6), child: Key3D(icon: Icons.backspace_outlined, onTap: _back)),
+                              Padding(padding: const EdgeInsets.all(6), child: Key3D(label: '0', onTap: () => _press('0'))),
+                              Padding(
+                                padding: const EdgeInsets.all(6),
+                                child: Key3D(icon: _busy ? Icons.hourglass_top : Icons.arrow_forward, accent: true, onTap: _submit),
+                              ),
+                            ]),
+                          ]),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          tr('Forgot your PIN? The owner can reset it in Employees.'),
+                          style: Theme.of(context).textTheme.bodySmall,
+                          textAlign: TextAlign.center,
+                        ),
+                        if (_mode == 'login' && DriveService.instance.enabled)
+                          TextButton(onPressed: _busy ? null : _forgot, child: Text(tr('Owner forgot PIN? Verify with Google'))),
+                      ]),
                     ),
                   ),
                 ),
               ),
-              SizedBox(
-                height: 32,
-                child: Center(child: Text(_error ?? '', style: TextStyle(color: cs.error, fontWeight: FontWeight.w600))),
-              ),
-              Directionality(
-                textDirection: TextDirection.ltr,
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  for (final row in const [
-                    ['1', '2', '3'],
-                    ['4', '5', '6'],
-                    ['7', '8', '9'],
-                  ])
-                    Row(mainAxisSize: MainAxisSize.min, children: [for (final d in row) key(d)]),
-                  Row(mainAxisSize: MainAxisSize.min, children: [
-                    key('', icon: Icons.backspace_outlined, onTap: _back),
-                    key('0'),
-                    key('', icon: _busy ? Icons.hourglass_top : Icons.arrow_forward, onTap: _submit),
-                  ]),
-                ]),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                tr('Forgot your PIN? The owner can reset it in Employees.'),
-                style: Theme.of(context).textTheme.bodySmall,
-                textAlign: TextAlign.center,
-              ),
-              if (_mode == 'login' && DriveService.instance.enabled)
-                TextButton(
-                  onPressed: _busy ? null : _forgot,
-                  child: Text(tr('Owner forgot PIN? Verify with Google')),
-                ),
-            ]),
-          ),
+            ),
+            TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: Colors.white70),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SuperAdminLogin())),
+              icon: const Icon(Icons.admin_panel_settings, size: 18),
+              label: Text(tr('Super admin')),
+            ),
+            const VendorFooter(onDark: true),
+          ]),
         ),
       ),
     );

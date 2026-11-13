@@ -54,6 +54,12 @@ class DashboardScreen extends StatelessWidget {
     final seeProfit = app.can(Perm.reports);
     return Scaffold(
       appBar: AppBar(
+        leading: (app.settings['logo'] ?? '').isEmpty
+            ? null
+            : Padding(
+                padding: const EdgeInsets.all(8),
+                child: ClipOval(child: ProductThumb(image: app.settings['logo'], name: app.businessName, size: 40)),
+              ),
         title: Text(app.businessName),
         actions: [
           if (drive.enabled)

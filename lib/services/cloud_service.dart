@@ -251,12 +251,31 @@ class CloudService extends ChangeNotifier {
     }
     await _shopSub?.cancel();
     _deviceRegistered = false;
-    _shopSub = db.doc('shops/$id').snapshots().listen(_onShop, onError: (e) => lastError = authError(e));
+    _shopSub = db.doc('shops/$id').snapshots().listen(_onShop, onError: (e) {
+      lastError = authError(e);
+      // Deleted by the super admin (or given to another owner): free plan.
+      if (e is FirebaseException && e.code == 'permission-denied') {
+        Access.instance.setCloud(CloudPlan.fromShop(null));
+        _shopSub = null;
+        shopId = null;
+        notifyListeners();
+      }
+    });
   }
 
   Future<void> _onShop(DocumentSnapshot<Map<String, dynamic>> s) async {
     shop = s.data();
-    if (shop == null) return;
+    if (shop == null) {
+      // The super admin deleted this company: back to the free plan.
+      if (s.exists == false && !s.metadata.isFromCache) {
+        Access.instance.setCloud(CloudPlan.fromShop(null));
+        await _shopSub?.cancel();
+        _shopSub = null;
+        shopId = null;
+        notifyListeners();
+      }
+      return;
+    }
     Access.instance.setCloud(CloudPlan.fromShop(shop));
     final devices = (shop!['devices'] as Map?) ?? {};
     final mine = devices[_device] as Map?;
@@ -501,6 +520,80 @@ class CloudService extends ChangeNotifier {
       await assignSubscription({'id': ref.id, ...data}, package, amount: amount, note: 'New company');
     }
     return ref.id;
+  }
+
+  /// Super admin: creates the owner's login (email + password) and the
+  /// company in one step, so the owner can simply sign in on their phone.
+  /// Uses a second Firebase app so the super admin stays signed in.
+  /// Returns the company id.
+  Future<String> createCompanyWithLogin({
+    required String name,
+    required String ownerEmail,
+    required String password,
+    String ownerName = '',
+    String phone = '',
+    String city = '',
+    String category = '',
+    Package? package,
+    double? amount,
+  }) async {
+    const appName = 'bizpos-owner-setup';
+    FirebaseApp second;
+    try {
+      second = Firebase.app(appName);
+    } catch (_) {
+      second = await Firebase.initializeApp(name: appName, options: Firebase.app().options);
+    }
+    final secondAuth = FirebaseAuth.instanceFor(app: second);
+    final email = ownerEmail.trim().toLowerCase();
+    final cred = await secondAuth.createUserWithEmailAndPassword(email: email, password: password);
+    final owner = cred.user!;
+    try {
+      if (ownerName.trim().isNotEmpty) await owner.updateDisplayName(ownerName.trim());
+      final shopRef = db.collection('shops').doc();
+      final data = <String, dynamic>{
+        'ownerUid': owner.uid,
+        'ownerEmail': email,
+        'ownerName': ownerName.trim(),
+        'name': name.trim(),
+        'category': category,
+        'phone': phone.trim(),
+        'city': city.trim(),
+        'currency': 'Rs',
+        'plan': 'free',
+        'status': 'active',
+        'devices': <String, dynamic>{},
+        'createdBy': user?.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      await shopRef.set(data);
+      // The owner's own users document is written as the owner (rules allow only that).
+      await FirebaseFirestore.instanceFor(app: second).doc('users/${owner.uid}').set({
+        'email': email,
+        'name': ownerName.trim().isEmpty ? email.split('@').first : ownerName.trim(),
+        'shopId': shopRef.id,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      if (package != null) {
+        await assignSubscription({'id': shopRef.id, ...data}, package, amount: amount, note: 'New company');
+      }
+      return shopRef.id;
+    } finally {
+      await secondAuth.signOut();
+    }
+  }
+
+  /// Super admin: deletes a company. Its phones drop to the free plan.
+  Future<void> deleteCompany(String shopId) async {
+    final snap = await db.doc('shops/$shopId').get();
+    final ownerUid = '${snap.data()?['ownerUid'] ?? ''}';
+    final batch = db.batch();
+    batch.delete(db.doc('shops/$shopId'));
+    if (ownerUid.isNotEmpty) {
+      batch.set(db.doc('users/$ownerUid'), {'shopId': FieldValue.delete(), 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+    }
+    await batch.commit();
   }
 
   /// A company the super admin created for this verified email, not yet claimed.

@@ -376,7 +376,7 @@ class _ForgotSheetState extends State<_ForgotSheet> {
           Text(tr('We will email you a link to choose a new password.'), style: const TextStyle(color: Tw.slate400, fontSize: 14)),
           const SizedBox(height: Tw.s5),
           if (_sent)
-            AuthBanner(success: true, text: tr('Password reset link sent. Check your email (and spam folder).'))
+            AuthBanner(success: true, text: '${tr('Password reset link sent. Check your email (and spam folder).')}\n${tr('It comes from noreply@bizpos-7e092.firebaseapp.com. No email? Make sure this is the email you signed up with.')}')
           else ...[
             if (_error != null) ...[AuthBanner(text: _error!), const SizedBox(height: Tw.s3)],
             TextFormField(

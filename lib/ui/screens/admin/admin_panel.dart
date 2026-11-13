@@ -246,43 +246,66 @@ class _Overview extends StatelessWidget {
             .where((p) => p.$2.activeAt(t) && p.$2.expiresAt != 0 && p.$2.expiresAt - t < 7 * 86400000)
             .toList()
           ..sort((a, b) => a.$2.expiresAt.compareTo(b.$2.expiresAt));
-        return ListView(padding: const EdgeInsets.all(12), children: [
+        return ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 32), children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Tw.indigo600, Tw.violet600, Color(0xFF9333EA)]),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(tr('All companies'), style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13)),
+              Text('${shops.length}', style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w800, letterSpacing: -1)),
+              const SizedBox(height: 8),
+              StreamBuilder<List<Map<String, dynamic>>>(
+                stream: cloud.subscriptionsSince(monthStart),
+                builder: (ctx, s) => Text(
+                  '${tr('Revenue this month')}: ${Fmt.money((s.data ?? []).fold<double>(0, (a, r) => a + ((r['amount'] ?? 0) as num).toDouble()))}',
+                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 12),
           GridView.count(
             crossAxisCount: MediaQuery.sizeOf(context).width > 700 ? 4 : 2,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.6,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 1.45,
             children: [
-              StatCard(label: 'Shops', value: '${shops.length}', icon: Icons.store),
-              StatCard(label: 'Paid', value: '$paid', icon: Icons.workspace_premium, color: Colors.green.shade700),
-              StatCard(label: 'Free', value: '${shops.length - paid - blocked}', icon: Icons.storefront, color: Colors.blueGrey),
-              StatCard(label: 'Blocked', value: '$blocked', icon: Icons.block, color: Colors.red),
-              StreamBuilder<List<Map<String, dynamic>>>(
-                stream: cloud.subscriptionsSince(monthStart),
-                builder: (ctx, s) => StatCard(
-                  label: 'Revenue this month',
-                  value: Fmt.money((s.data ?? []).fold<double>(0, (a, r) => a + ((r['amount'] ?? 0) as num).toDouble())),
-                  icon: Icons.payments,
-                  color: Colors.teal,
-                ),
-              ),
+              StatCard(label: 'Paid', value: '$paid', icon: Icons.workspace_premium_rounded, color: Tw.emerald500),
+              StatCard(label: 'Free', value: '${shops.length - paid - blocked}', icon: Icons.storefront_rounded, color: Tw.sky400),
+              StatCard(label: 'Blocked', value: '$blocked', icon: Icons.block_rounded, color: Tw.rose500),
               StreamBuilder<List<Map<String, dynamic>>>(
                 stream: cloud.requests(),
-                builder: (ctx, s) => StatCard(label: 'Pending requests', value: '${(s.data ?? []).length}', icon: Icons.mark_email_unread, color: Colors.orange.shade800),
+                builder: (ctx, s) => StatCard(label: 'Pending requests', value: '${(s.data ?? []).length}', icon: Icons.mark_email_unread_rounded, color: Tw.amber500),
               ),
             ],
           ),
-          SectionTitle('Expiring in 7 days (${expiring.length})'),
-          if (expiring.isEmpty) const ListTile(title: Text('—')),
-          for (final e in expiring)
-            ListTile(
-              title: Text('${e.$1['name']}'),
-              subtitle: Text('${e.$2.name} · ${Fmt.date(e.$2.expiresAt)}'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ShopAdminDetail(shopId: e.$1['id'] as String))),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('${tr('Expiring in 7 days')} (${expiring.length})', style: Theme.of(context).textTheme.titleMedium),
+                if (expiring.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text(tr('Nothing expiring soon.'), style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                  ),
+                for (final e in expiring)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('${e.$1['name']}'),
+                    subtitle: Text('${e.$2.name} · ${Fmt.date(e.$2.expiresAt)}'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ShopAdminDetail(shopId: e.$1['id'] as String))),
+                  ),
+              ]),
             ),
+          ),
         ]);
       },
     );
@@ -510,6 +533,39 @@ class ShopAdminDetail extends StatelessWidget {
                 onPressed: () => launchUrl(Uri.parse('https://wa.me/${Vendor.whatsappNumber(phone)}'), mode: LaunchMode.externalApplication),
               ),
             ],
+            const SectionTitle('Owner login'),
+            Card(
+              child: Column(children: [
+                ListTile(
+                  leading: const Icon(Icons.lock_reset_rounded, color: Tw.sky400),
+                  title: Text(tr('Send password reset link')),
+                  subtitle: Text('${d['ownerEmail'] ?? ''}'),
+                  onTap: '${d['ownerEmail'] ?? ''}'.isEmpty
+                      ? null
+                      : () async {
+                          if (!await confirm(context, 'Send password reset link',
+                              'The owner gets an email to choose a new password. Ask them to check the spam folder too.')) {
+                            return;
+                          }
+                          if (context.mounted) {
+                            await guard(context, () => cloud.resetPassword('${d['ownerEmail']}'), success: 'Reset link sent');
+                          }
+                        },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.delete_forever_rounded, color: Tw.rose500),
+                  title: Text(tr('Delete company'), style: const TextStyle(color: Tw.rose500)),
+                  subtitle: Text(tr('Removes the company and its plan. Data on the shop phones is not erased.')),
+                  onTap: () async {
+                    final typed = await _typeToConfirm(context, '${d['name'] ?? ''}');
+                    if (!typed || !context.mounted) return;
+                    final done = await guard(context, () => cloud.deleteCompany(shopId), success: 'Company deleted');
+                    if (done && context.mounted) Navigator.pop(context);
+                  },
+                ),
+              ]),
+            ),
             const SectionTitle('Devices'),
             for (final e in devices.entries)
               ListTile(
@@ -855,45 +911,157 @@ class _AdminSettings extends StatelessWidget {
     }
   }
 
+  Widget _group(BuildContext context, String title, List<Widget> children) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 20),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+          child: Text(tr(title).toUpperCase(),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w700, letterSpacing: 1.1)),
+        ),
+        Card(
+          clipBehavior: Clip.antiAlias,
+          child: Column(children: [
+            for (var i = 0; i < children.length; i++) ...[
+              if (i > 0) const Divider(height: 1, indent: 64),
+              children[i],
+            ],
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  Widget _icon(IconData icon, Color c) => Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(color: c.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+        child: Icon(icon, color: c, size: 20),
+      );
+
   @override
   Widget build(BuildContext context) {
     final cloud = context.watch<CloudService>();
     final on = cloud.adminDoc['totpEnabled'] == true;
-    return ListView(children: [
-      ListTile(
-        leading: const Icon(Icons.brush),
-        title: Text(tr('Branding for all shops')),
-        subtitle: Text('${LicenseService.instance.footer} · ${Vendor.pretty(LicenseService.instance.phone)}'),
-        onTap: () => _branding(context),
+    final email = cloud.user?.email ?? '';
+    final theme = Theme.of(context);
+    return ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 32), children: [
+      Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(gradient: Tw.brandGradient, borderRadius: BorderRadius.circular(20)),
+        child: Row(children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(16)),
+            alignment: Alignment.center,
+            child: Text(email.isEmpty ? '?' : email.characters.first.toUpperCase(),
+                style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(999)),
+                child: Text(tr('Super admin'), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+              ),
+              const SizedBox(height: 4),
+              Text(email, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
+              Text(on ? tr('2FA is on') : tr('2FA is off'), style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12.5)),
+            ]),
+          ),
+        ]),
       ),
-      const SectionTitle('Security'),
-      SwitchListTile(
-        secondary: const Icon(Icons.security),
-        title: Text(tr('Two-factor (authenticator) for this panel')),
-        subtitle: Text(tr(on ? 'On' : 'Off')),
-        value: on,
-        onChanged: (_) => _twoFactor(context),
-      ),
-      if (cloud.usesPassword)
-        ListTile(leading: const Icon(Icons.password), title: Text(tr('Change account password')), onTap: () => _accountPassword(context)),
-      if (!cloud.usesPassword)
-        ListTile(
-          leading: const Icon(Icons.info_outline),
-          title: Text(tr('You sign in with Google')),
-          subtitle: Text(tr('Change the password and turn on 2-Step Verification in your Google account.')),
+      _group(context, 'Security', [
+        SwitchListTile(
+          secondary: _icon(Icons.security_rounded, Tw.emerald500),
+          title: Text(tr('Two-factor (authenticator)')),
+          subtitle: Text(tr(on ? 'Code asked every time the panel opens' : 'Fingerprint or password is asked instead')),
+          value: on,
+          onChanged: (_) => _twoFactor(context),
         ),
-      const SectionTitle('Offline shops'),
-      ListTile(
-        leading: const Icon(Icons.qr_code_2),
-        title: Text(tr('Offline unlock codes')),
-        subtitle: Text(tr('For shops without internet')),
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SuperAdminLogin())),
-      ),
-      ListTile(
-        leading: const Icon(Icons.key),
-        title: Text(tr('Change offline code password')),
-        onTap: () => _offlinePassword(context),
-      ),
+        if (cloud.usesPassword)
+          ListTile(
+            leading: _icon(Icons.password_rounded, Tw.indigo500),
+            title: Text(tr('Change account password')),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => _accountPassword(context),
+          )
+        else
+          ListTile(
+            leading: _icon(Icons.account_circle_rounded, Tw.indigo500),
+            title: Text(tr('You sign in with Google')),
+            subtitle: Text(tr('Change the password and turn on 2-Step Verification in your Google account.')),
+          ),
+        ListTile(
+          leading: _icon(Icons.logout_rounded, Tw.rose500),
+          title: Text(tr('Log out of super admin'), style: const TextStyle(color: Tw.rose500)),
+          onTap: () {
+            final messenger = ScaffoldMessenger.of(context);
+            AdminGate.lock();
+            Navigator.of(context).popUntil((r) => r.isFirst);
+            messenger.showSnackBar(SnackBar(content: Text(tr('Logged out of super admin'))));
+          },
+        ),
+      ]),
+      _group(context, 'Branding', [
+        ListTile(
+          leading: _icon(Icons.brush_rounded, Tw.fuchsia500),
+          title: Text(tr('Footer and support number')),
+          subtitle: Text('${LicenseService.instance.footer} · ${Vendor.pretty(LicenseService.instance.phone)}'),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => _branding(context),
+        ),
+      ]),
+      _group(context, 'Offline shops', [
+        ListTile(
+          leading: _icon(Icons.qr_code_2_rounded, Tw.amber500),
+          title: Text(tr('Offline unlock codes')),
+          subtitle: Text(tr('For shops without internet')),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SuperAdminLogin())),
+        ),
+        ListTile(
+          leading: _icon(Icons.key_rounded, Tw.sky400),
+          title: Text(tr('Change offline code password')),
+          subtitle: Text(tr('The master password for offline codes')),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () => _offlinePassword(context),
+        ),
+      ]),
+      const SizedBox(height: 16),
+      Text('BizPOS super admin', textAlign: TextAlign.center, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
     ]);
   }
+}
+
+/// Asks the super admin to type the company name before deleting it.
+Future<bool> _typeToConfirm(BuildContext context, String name) async {
+  final c = TextEditingController();
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_rounded, color: Tw.rose500, size: 36),
+        title: Text(tr('Delete company')),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text('${tr('This cannot be undone. Type the company name to confirm:')} $name'),
+          const SizedBox(height: 12),
+          TextField(controller: c, autofocus: true, onChanged: (_) => setState(() {})),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Cancel'))),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Tw.rose600),
+            onPressed: c.text.trim().toLowerCase() == name.trim().toLowerCase() ? () => Navigator.pop(ctx, true) : null,
+            child: Text(tr('Delete')),
+          ),
+        ],
+      ),
+    ),
+  );
+  return ok == true;
 }

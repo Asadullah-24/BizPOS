@@ -13,6 +13,8 @@ import '../../services/cloud_service.dart';
 import '../../services/drive_service.dart';
 import '../brand.dart';
 import '../common.dart';
+import '../tokens.dart';
+import 'auth/auth_widgets.dart';
 import 'super_admin/super_admin_login.dart';
 
 /// Sign-in screen shown above the whole app while nobody is signed in.
@@ -242,7 +244,6 @@ class _LockScreenState extends State<LockScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final app = AppState.instance;
     final dots = _mode == 'totp' ? 6 : (_pin.length < 4 ? 4 : _pin.length);
     return Scaffold(
@@ -261,20 +262,18 @@ class _LockScreenState extends State<LockScreen> {
                         Container(
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            boxShadow: [BoxShadow(color: cs.primary.withOpacity(0.35), blurRadius: 20, offset: const Offset(0, 8))],
+                            boxShadow: Tw.glow(Tw.indigo500, opacity: 0.4),
                           ),
                           child: (app.settings['logo'] ?? '').isNotEmpty
                               ? ClipOval(child: ProductThumb(image: app.settings['logo'], name: app.businessName, size: 76))
-                              : CircleAvatar(
-                                  radius: 38,
-                                  backgroundColor: cs.primaryContainer,
-                                  child: Icon(Icons.storefront, size: 40, color: cs.onPrimaryContainer),
-                                ),
+                              : const BrandMark(size: 76),
                         ),
                         const SizedBox(height: 12),
-                        Text(app.businessName, style: Theme.of(context).textTheme.headlineSmall, textAlign: TextAlign.center),
+                        Text(app.businessName,
+                            style: const TextStyle(fontFamily: Tw.font, fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.4),
+                            textAlign: TextAlign.center),
                         const SizedBox(height: 4),
-                        Text(tr(_prompt), style: Theme.of(context).textTheme.bodyLarge, textAlign: TextAlign.center),
+                        Text(tr(_prompt), style: const TextStyle(fontSize: 15, color: Tw.slate400), textAlign: TextAlign.center),
                         const SizedBox(height: 16),
                         Row(
                           mainAxisSize: MainAxisSize.min,
@@ -287,15 +286,15 @@ class _LockScreenState extends State<LockScreen> {
                               height: 15,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: i < _pin.length ? cs.primary : cs.outlineVariant,
-                                boxShadow: i < _pin.length ? [BoxShadow(color: cs.primary.withOpacity(0.5), blurRadius: 6)] : null,
+                                color: i < _pin.length ? Tw.indigo400 : Tw.slate700,
+                                boxShadow: i < _pin.length ? [BoxShadow(color: Tw.indigo500.withOpacity(0.6), blurRadius: 8)] : null,
                               ),
                             ),
                           ),
                         ),
                         SizedBox(
                           height: 30,
-                          child: Center(child: Text(_error ?? '', style: TextStyle(color: cs.error, fontWeight: FontWeight.w600))),
+                          child: Center(child: Text(_error ?? '', style: const TextStyle(color: Tw.rose400, fontWeight: FontWeight.w600))),
                         ),
                         Directionality(
                           textDirection: TextDirection.ltr,
@@ -330,7 +329,7 @@ class _LockScreenState extends State<LockScreen> {
                         const SizedBox(height: 8),
                         Text(
                           tr('Forgot your PIN? The owner can reset it in Employees.'),
-                          style: Theme.of(context).textTheme.bodySmall,
+                          style: const TextStyle(fontSize: 12, color: Tw.slate500),
                           textAlign: TextAlign.center,
                         ),
                         if (_mode == 'login' && (CloudService.instance.signedIn || DriveService.instance.enabled))
@@ -345,7 +344,7 @@ class _LockScreenState extends State<LockScreen> {
               ),
             ),
             TextButton.icon(
-              style: TextButton.styleFrom(foregroundColor: Colors.white70),
+              style: TextButton.styleFrom(foregroundColor: Tw.slate400),
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SuperAdminLogin())),
               icon: const Icon(Icons.admin_panel_settings, size: 18),
               label: Text(tr('Super admin')),

@@ -9,8 +9,11 @@ import '../core/license.dart';
 import '../core/packages.dart';
 import '../services/alert_service.dart';
 import 'screens/plan_screen.dart';
+import 'screens/auth/auth_widgets.dart';
+import 'tokens.dart';
 
-/// Dark animated backdrop with slowly drifting glow orbs (welcome / sign-in).
+/// Dark animated backdrop: slate-950 base, a faint dot grid and slowly
+/// drifting indigo / violet / sky glows (welcome, sign-in, lock screens).
 class AnimatedBackdrop extends StatefulWidget {
   const AnimatedBackdrop({super.key, required this.child});
   final Widget child;
@@ -20,7 +23,7 @@ class AnimatedBackdrop extends StatefulWidget {
 }
 
 class _AnimatedBackdropState extends State<AnimatedBackdrop> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(seconds: 14))..repeat();
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(seconds: 18))..repeat();
 
   @override
   void dispose() {
@@ -30,44 +33,60 @@ class _AnimatedBackdropState extends State<AnimatedBackdrop> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF070B14), Color(0xFF0B1324), Color(0xFF0A1A22)],
-        ),
-      ),
+    return ColoredBox(
+      color: Tw.slate950,
       child: Stack(children: [
-        AnimatedBuilder(
-          animation: _c,
-          builder: (context, _) {
-            final t = _c.value * 2 * math.pi;
-            final size = MediaQuery.sizeOf(context);
-            Widget orb(double x, double y, double r, Color c) => Positioned(
-                  left: x - r,
-                  top: y - r,
-                  child: Container(
-                    width: r * 2,
-                    height: r * 2,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(colors: [c.withOpacity(0.55), c.withOpacity(0)]),
-                    ),
-                  ),
-                );
-            return Stack(children: [
-              orb(size.width * (0.2 + 0.1 * math.sin(t)), size.height * (0.18 + 0.05 * math.cos(t)), 180, cs.primary),
-              orb(size.width * (0.85 + 0.08 * math.cos(t * 1.3)), size.height * (0.45 + 0.06 * math.sin(t)), 200, cs.tertiary),
-              orb(size.width * (0.35 + 0.12 * math.cos(t * 0.7)), size.height * (0.88 + 0.04 * math.sin(t * 1.1)), 220, const Color(0xFF6366F1)),
-            ]);
-          },
+        Positioned.fill(
+          child: RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: _c,
+              builder: (context, _) {
+                final t = _c.value * 2 * math.pi;
+                final size = MediaQuery.sizeOf(context);
+                Widget orb(double x, double y, double r, Color c, double o) => Positioned(
+                      left: x - r,
+                      top: y - r,
+                      child: Container(
+                        width: r * 2,
+                        height: r * 2,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(colors: [c.withOpacity(o), c.withOpacity(0)]),
+                        ),
+                      ),
+                    );
+                return Stack(children: [
+                  orb(size.width * (0.15 + 0.08 * math.sin(t)), size.height * (0.10 + 0.04 * math.cos(t)), 260, Tw.indigo500, 0.38),
+                  orb(size.width * (0.95 + 0.06 * math.cos(t * 1.3)), size.height * (0.38 + 0.05 * math.sin(t)), 240, Tw.violet600, 0.30),
+                  orb(size.width * (0.30 + 0.10 * math.cos(t * 0.7)), size.height * (0.98 + 0.03 * math.sin(t * 1.1)), 280, Tw.sky400, 0.14),
+                ]);
+              },
+            ),
+          ),
         ),
+        const Positioned.fill(child: IgnorePointer(child: CustomPaint(painter: _DotGrid()))),
         widget.child,
       ]),
     );
   }
+}
+
+class _DotGrid extends CustomPainter {
+  const _DotGrid();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()..color = Colors.white.withOpacity(0.045);
+    const gap = 22.0;
+    for (var y = gap / 2; y < size.height; y += gap) {
+      for (var x = gap / 2; x < size.width; x += gap) {
+        canvas.drawCircle(Offset(x, y), 0.9, p);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 /// Fades and slides its child in after [delay] (staggered entrances).
@@ -98,26 +117,25 @@ class BrandBackground extends StatelessWidget {
   Widget build(BuildContext context) => AnimatedBackdrop(child: child);
 }
 
-/// Raised card with a deep shadow (the "3D" panel on the login screen).
+/// Frosted slate card used on the dark auth and lock screens.
 class GlassCard extends StatelessWidget {
-  const GlassCard({super.key, required this.child, this.padding = const EdgeInsets.all(20)});
+  const GlassCard({super.key, required this.child, this.padding = const EdgeInsets.all(Tw.s6)});
   final Widget child;
   final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: cs.surface.withOpacity(0.96),
-        borderRadius: BorderRadius.circular(28),
+        color: Tw.slate900.withOpacity(0.82),
+        borderRadius: BorderRadius.circular(Tw.r3xl),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 30, offset: const Offset(0, 18)),
-          BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 6, offset: const Offset(0, 3)),
+          BoxShadow(color: Colors.black.withOpacity(0.45), blurRadius: 40, offset: const Offset(0, 20)),
         ],
       ),
-      child: child,
+      child: Theme(data: authTheme(context), child: child),
     );
   }
 }
@@ -139,9 +157,8 @@ class _Key3DState extends State<Key3D> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final base = widget.accent ? cs.primary : cs.surfaceContainerHighest;
-    final fg = widget.accent ? cs.onPrimary : cs.onSurface;
+    final accent = widget.accent;
+    final fg = accent ? Colors.white : Tw.slate100;
     return GestureDetector(
       onTapDown: widget.onTap == null ? null : (_) => setState(() => _down = true),
       onTapUp: widget.onTap == null
@@ -151,29 +168,25 @@ class _Key3DState extends State<Key3D> {
               widget.onTap!();
             },
       onTapCancel: () => setState(() => _down = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 80),
-        margin: EdgeInsets.only(top: _down ? 4 : 0, bottom: _down ? 0 : 4),
-        width: 74,
-        height: 58,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color.lerp(base, Colors.white, 0.25)!, base],
+      child: AnimatedScale(
+        scale: _down ? 0.94 : 1,
+        duration: const Duration(milliseconds: 90),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 90),
+          width: 76,
+          height: 60,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(Tw.r2xl),
+            gradient: accent ? Tw.brandGradient : null,
+            color: accent ? null : (_down ? Tw.slate700 : Tw.slate800.withOpacity(0.9)),
+            border: accent ? null : Border.all(color: Colors.white.withOpacity(0.06)),
+            boxShadow: accent && !_down ? Tw.glow(Tw.indigo500, opacity: 0.4) : null,
           ),
-          boxShadow: _down
-              ? [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 2, offset: const Offset(0, 1))]
-              : [
-                  BoxShadow(color: Color.lerp(base, Colors.black, 0.35)!, offset: const Offset(0, 4)),
-                  BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 10, offset: const Offset(0, 8)),
-                ],
+          child: widget.icon != null
+              ? Icon(widget.icon, color: fg, size: 24)
+              : Text(widget.label ?? '', style: TextStyle(fontFamily: Tw.font, fontSize: 24, fontWeight: FontWeight.w600, color: fg)),
         ),
-        child: widget.icon != null
-            ? Icon(widget.icon, color: fg, size: 26)
-            : Text(widget.label ?? '', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600, color: fg)),
       ),
     );
   }
@@ -187,7 +200,7 @@ class VendorFooter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lic = context.watch<LicenseService>();
-    final color = onDark ? Colors.white.withOpacity(0.85) : Theme.of(context).colorScheme.onSurfaceVariant;
+    final color = onDark ? Tw.slate400 : Theme.of(context).colorScheme.onSurfaceVariant;
     return InkWell(
       onTap: () => showVendorContact(context),
       child: Padding(

@@ -148,6 +148,7 @@ jobs:
           mkdir -p /tmp/cilog
           cp ci.log /tmp/cilog/latest.log 2>/dev/null || echo "no log" > /tmp/cilog/latest.log
           echo "run=${{ github.run_number }} sha=${{ github.sha }} status=${{ job.status }}" > /tmp/cilog/status.txt
+          cp -r build/screens /tmp/cilog/screens 2>/dev/null || true
           cd /tmp/cilog
           git init -q
           git checkout -q -b ci-logs

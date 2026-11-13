@@ -9,6 +9,7 @@ import 'package:bizpos/core/license.dart';
 import 'package:bizpos/core/packages.dart';
 import 'package:bizpos/services/cloud_service.dart';
 import 'package:bizpos/services/drive_service.dart';
+import 'package:bizpos/ui/screens/auth/auth_widgets.dart';
 import 'package:bizpos/ui/screens/auth/sign_in_screen.dart';
 import 'package:bizpos/ui/screens/auth/welcome_screen.dart';
 import 'package:flutter/material.dart';
@@ -86,13 +87,13 @@ void main() {
 
     await t.pumpWidget(providers(MaterialApp(theme: buildTheme(Brightness.dark), home: const SignInScreen(signUp: true))));
     await settle(t, 6);
-    await t.tap(find.text('Create account'));
+    await t.tap(find.byType(GradientButton));
     await t.pump();
     expect(find.text('Enter your name.'), findsOneWidget);
     expect(find.text('Enter your email.'), findsOneWidget);
     await t.enterText(find.byType(TextFormField).at(1), 'shop@example.com');
     await t.enterText(find.byType(TextFormField).at(2), 'short');
-    await t.tap(find.text('Create account'));
+    await t.tap(find.byType(GradientButton));
     await t.pump();
     expect(find.text('At least 8 characters.'), findsOneWidget);
   });

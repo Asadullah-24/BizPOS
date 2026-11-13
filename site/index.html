@@ -179,6 +179,13 @@ async function home() {
   const live = new Set(stores.map((s) => s.id));
   const featured = featuredSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((f) => live.has(f.shopId));
   const hot = featured.filter((f) => f.kind === 'hot');
+  // Products from every live shop (newest first) for the home page.
+  const latest = (await Promise.all(stores.slice(0, 30).map(async (st) => {
+    try {
+      const snap = await getDocs(collection(db, `storefronts/${st.id}/items`));
+      return snap.docs.map((d) => ({ id: d.id, ...d.data(), store: st }));
+    } catch { return []; }
+  }))).flat().sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
   const deals = featured.filter((f) => f.kind === 'deal');
 
   const render = (q = '') => {
@@ -186,6 +193,7 @@ async function home() {
     const fStores = stores.filter((s) => !q || match(s.name) || match(s.city) || match(s.category));
     const fHot = hot.filter((f) => !q || match(f.name) || match(f.storeName));
     const fDeals = deals.filter((f) => !q || match(f.name) || match(f.storeName));
+    const fLatest = latest.filter((i) => !q || match(i.name) || match(i.store.name));
     const card = (f, deal) => productCard({ id: f.itemId, name: f.name, price: f.price, thumb: f.thumb }, f.currency,
       { storeName: f.storeName, href: `?s=${encodeURIComponent(f.shopId)}`, deal: deal ? f.dealPrice : null });
     main.innerHTML = `
@@ -208,6 +216,13 @@ async function home() {
         <section class="mt-10">
           <h2 class="text-xl font-extrabold">⭐ Hot right now</h2>
           <div class="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">${fHot.map((f) => card(f, false)).join('')}</div>
+        </section>` : ''}
+      ${fLatest.length ? `
+        <section class="mt-10">
+          <h2 class="text-xl font-extrabold">New in shops</h2>
+          <div class="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            ${fLatest.slice(0, 20).map((i) => productCard(i, i.store.currency, { storeName: i.store.name, href: `?s=${encodeURIComponent(i.store.id)}` })).join('')}
+          </div>
         </section>` : ''}
       <section class="mt-10">
         <h2 class="text-xl font-extrabold">Shops</h2>

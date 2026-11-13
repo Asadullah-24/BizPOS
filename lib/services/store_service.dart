@@ -119,6 +119,9 @@ class StoreService extends ChangeNotifier {
       throw StateError('Your plan shows $allowance products online. Ask BizPOS support for more.');
     }
     await _db.doc('storefronts/$id/items/${p.id}').set(await _itemData(p));
+    // Showing a product means the shop wants to be online: turn the store on.
+    final card = await _db.doc('storefronts/$id').get();
+    if (card.data()?['published'] != true) await setPublished(true);
   }
 
   Future<void> unpublish(String productId) async {

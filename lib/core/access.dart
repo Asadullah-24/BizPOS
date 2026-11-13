@@ -60,5 +60,13 @@ class Access extends ChangeNotifier {
     return 0;
   }
 
+  /// Most products this shop may have; 0 means no limit.
+  int get maxProducts {
+    if (cloud.productLimit != null) return cloud.productLimit!;
+    if (cloudActive) return cloud.maxProducts;
+    if (LicenseService.instance.active) return 0;
+    return Plans.freeMaxProducts;
+  }
+
   int get daysLeft => expiresAt == 0 ? -1 : ((expiresAt - _now()) / 86400000).ceil();
 }

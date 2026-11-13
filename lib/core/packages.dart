@@ -62,6 +62,10 @@ class Plan {
 }
 
 class Plans {
+  /// Products a free shop may add. Paid plans have no limit unless the
+  /// package or the super admin sets one.
+  static const freeMaxProducts = 100;
+
   static const free = Plan(key: 'free', name: 'Free', price: 'Free', description: 'Core POS, free forever.');
 
   static const trial = Plan(
@@ -109,10 +113,14 @@ class Package {
     this.active = true,
     this.sort = 0,
     this.description = '',
+    this.maxProducts = 0,
   });
 
   final String id;
   String name;
+
+  /// Most products a shop on this package may have; 0 means no limit.
+  int maxProducts;
 
   /// Shown to shops, e.g. "Rs 1,000 / month".
   String price;
@@ -139,9 +147,11 @@ class Package {
         active: (m['active'] ?? true) as bool,
         sort: ((m['sort'] ?? 0) as num).toInt(),
         description: (m['description'] ?? '') as String,
+        maxProducts: ((m['maxProducts'] ?? 0) as num).toInt(),
       );
 
   Map<String, dynamic> toMap() => {
+        'maxProducts': maxProducts,
         'name': name,
         'price': price,
         'amount': amount,
@@ -176,7 +186,15 @@ class CloudPlan {
     this.adFree = false,
     this.expiresAt = 0,
     this.status = 'active',
+    this.maxProducts = 0,
+    this.productLimit,
   });
+
+  /// Product limit from the package (0 = none); applies while the plan is active.
+  final int maxProducts;
+
+  /// Limit the super admin set for this shop by hand (0 = none); always applies.
+  final int? productLimit;
 
   final String name;
   final String packageId;
@@ -202,6 +220,8 @@ class CloudPlan {
       adFree: (m['adFree'] ?? false) as bool,
       expiresAt: ((m['expiresAt'] ?? 0) as num).toInt(),
       status: (m['status'] ?? 'active') as String,
+      maxProducts: ((m['maxProducts'] ?? 0) as num).toInt(),
+      productLimit: (m['productLimit'] as num?)?.toInt(),
     );
   }
 
@@ -212,6 +232,8 @@ class CloudPlan {
         'adFree': adFree,
         'expiresAt': expiresAt,
         'status': status,
+        'maxProducts': maxProducts,
+        if (productLimit != null) 'productLimit': productLimit,
       };
 }
 

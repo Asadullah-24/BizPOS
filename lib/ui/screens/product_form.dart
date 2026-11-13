@@ -10,6 +10,7 @@ import '../../core/i18n.dart';
 import '../../core/ids.dart';
 import '../../models/models.dart';
 import '../../services/product_service.dart';
+import '../brand.dart';
 import '../common.dart';
 import 'inventory_screen.dart';
 import 'scanner_screen.dart';
@@ -198,6 +199,15 @@ class _ProductFormState extends State<ProductForm> {
       hasVariants: _hasVariants,
       active: _active,
     );
+    if (_isNew) {
+      try {
+        await ProductService.checkLimit();
+      } on ProductLimitError catch (e) {
+        if (mounted) await showProductLimit(context, e.limit);
+        return;
+      }
+    }
+    if (!mounted) return;
     final ok = await guard(context, () async {
       await ProductService.save(
         p,

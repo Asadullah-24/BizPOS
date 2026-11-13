@@ -292,3 +292,82 @@ bool requireFeature(BuildContext context, String feature) {
   openFeature(context, feature, () {});
   return false;
 }
+
+
+/// Shown when the shop reaches its plan's product limit.
+Future<void> showProductLimit(BuildContext context, int limit) async {
+  final go = await showModalBottomSheet<bool>(
+    context: context,
+    builder: (ctx) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Container(
+            width: 56,
+            height: 56,
+            alignment: Alignment.center,
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(color: Tw.amber500.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
+            child: const Icon(Icons.inventory_2_rounded, color: Tw.amber500, size: 30),
+          ),
+          Text('${tr('Product limit reached')}: $limit', textAlign: TextAlign.center, style: Theme.of(ctx).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          Text(tr('Upgrade your plan to add more products. Your existing products keep working.'), textAlign: TextAlign.center),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            icon: const Icon(Icons.workspace_premium_rounded),
+            label: Text(tr('See plans')),
+            onPressed: () => Navigator.pop(ctx, true),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.chat_rounded, color: Tw.emerald500),
+            label: Text(tr('Ask support on WhatsApp')),
+            onPressed: () {
+              Navigator.pop(ctx);
+              VendorContact.whatsapp('Assalam o Alaikum, I need more than $limit products in BizPOS. Device code: ${LicenseService.instance.deviceCodePretty}');
+            },
+          ),
+        ]),
+      ),
+    ),
+  );
+  if (go == true && context.mounted) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanScreen()));
+  }
+}
+
+/// "37 / 100 products" bar shown on the Products screen when there is a limit.
+class ProductUsageBar extends StatelessWidget {
+  const ProductUsageBar({super.key, required this.count, required this.limit});
+  final int count;
+  final int limit;
+
+  @override
+  Widget build(BuildContext context) {
+    if (limit <= 0) return const SizedBox.shrink();
+    final ratio = (count / limit).clamp(0.0, 1.0);
+    final color = ratio >= 1 ? Tw.rose500 : (ratio >= 0.8 ? Tw.amber500 : Tw.indigo500);
+    final cs = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanScreen())),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+        child: Row(children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: LinearProgressIndicator(value: ratio, minHeight: 6, color: color, backgroundColor: cs.surfaceContainerHighest),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text('$count / $limit ${tr('products')}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+          if (ratio >= 0.8) ...[
+            const SizedBox(width: 6),
+            Text(tr('Upgrade'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Tw.indigo400)),
+          ],
+        ]),
+      ),
+    );
+  }
+}

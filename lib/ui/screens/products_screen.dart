@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../core/access.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_state.dart';
@@ -7,6 +9,7 @@ import '../../core/format.dart';
 import '../../core/i18n.dart';
 import '../../models/models.dart';
 import '../../services/product_service.dart';
+import '../brand.dart';
 import '../common.dart';
 import 'categories_screen.dart';
 import 'product_form.dart';
@@ -36,10 +39,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.add),
         label: Text(tr('Add product')),
-        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductForm())),
+        onPressed: () => openProductForm(context),
       ),
       body: Column(children: [
         SearchField(onChanged: (v) => setState(() => _q = v), hint: 'Search name, SKU or barcode'),
+        if (Access.instance.maxProducts > 0)
+          LiveData<int>(
+            load: ProductService.count,
+            builder: (ctx, n) => ProductUsageBar(count: n, limit: Access.instance.maxProducts),
+          ),
         SizedBox(
           height: 48,
           child: LiveData<List<Category>>(
@@ -71,7 +79,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   icon: Icons.inventory_2_outlined,
                   text: 'No products yet',
                   action: FilledButton.icon(
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductForm())),
+                    onPressed: () => openProductForm(context),
                     icon: const Icon(Icons.add),
                     label: Text(tr('Add product')),
                   ),
@@ -114,4 +122,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
       ]),
     );
   }
+}
+
+
+/// Opens the new product form, or the upgrade sheet when the limit is reached.
+Future<void> openProductForm(BuildContext context) async {
+  try {
+    await ProductService.checkLimit();
+  } on ProductLimitError catch (e) {
+    if (context.mounted) await showProductLimit(context, e.limit);
+    return;
+  }
+  if (context.mounted) await Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductForm()));
 }

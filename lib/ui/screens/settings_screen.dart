@@ -444,11 +444,12 @@ class _BiometricTileState extends State<BiometricTile> {
 
   Future<void> _load() async {
     final available = await BiometricService.available();
-    final enrolled = await BiometricService.enrolledEmployee();
+    final id = AppState.instance.user?.id;
+    final on = id != null && await BiometricService.isEnrolled(id);
     if (!mounted) return;
     setState(() {
       _available = available;
-      _on = enrolled != null && enrolled == AppState.instance.user?.id;
+      _on = on;
     });
   }
 
@@ -463,7 +464,7 @@ class _BiometricTileState extends State<BiometricTile> {
       }
       await BiometricService.enroll(user.id);
     } else {
-      await BiometricService.disable();
+      await BiometricService.remove(user.id);
     }
     if (mounted) setState(() => _on = v);
   }

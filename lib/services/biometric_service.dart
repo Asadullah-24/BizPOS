@@ -41,19 +41,47 @@ class BiometricService {
     }
   }
 
-  /// Employee id enrolled for biometric unlock on this device, or null.
-  static Future<String?> enrolledEmployee() async {
+  static const _listKey = 'biometric_employees';
+  static const _lastKey = 'biometric_last';
+
+  /// Employees (owner and staff) who unlock with fingerprint on this phone.
+  static Future<List<String>> enrolled() async {
     final p = await SharedPreferences.getInstance();
-    return p.getString(_key);
+    final list = p.getStringList(_listKey) ?? [];
+    final old = p.getString(_key);
+    if (old != null) {
+      if (!list.contains(old)) list.add(old);
+      await p.setStringList(_listKey, list);
+      await p.remove(_key);
+    }
+    return list;
   }
+
+  static Future<bool> isEnrolled(String employeeId) async => (await enrolled()).contains(employeeId);
 
   static Future<void> enroll(String employeeId) async {
     final p = await SharedPreferences.getInstance();
-    await p.setString(_key, employeeId);
+    final list = await enrolled();
+    if (!list.contains(employeeId)) list.add(employeeId);
+    await p.setStringList(_listKey, list);
   }
 
-  static Future<void> disable() async {
+  static Future<void> remove(String employeeId) async {
     final p = await SharedPreferences.getInstance();
-    await p.remove(_key);
+    final list = await enrolled()..remove(employeeId);
+    await p.setStringList(_listKey, list);
   }
+
+  /// Who unlocked with fingerprint last (asked first on the lock screen).
+  static Future<String?> last() async => (await SharedPreferences.getInstance()).getString(_lastKey);
+
+  static Future<void> setLast(String employeeId) async =>
+      (await SharedPreferences.getInstance()).setString(_lastKey, employeeId);
+
+  /// Whether this employee was already offered fingerprint unlock.
+  static Future<bool> offered(String employeeId) async =>
+      (await SharedPreferences.getInstance()).getBool('biometric_offered_$employeeId') ?? false;
+
+  static Future<void> markOffered(String employeeId) async =>
+      (await SharedPreferences.getInstance()).setBool('biometric_offered_$employeeId', true);
 }

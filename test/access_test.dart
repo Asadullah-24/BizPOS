@@ -81,4 +81,24 @@ void main() {
       expect(x.features.every(Feature.all.contains), isTrue);
     }
   });
+
+  test('product limit: free 100, package limit while active, admin override always', () {
+    access.setCloud(CloudPlan());
+    expect(access.maxProducts, Plans.freeMaxProducts);
+    final future = nowMs() + 86400000;
+    access.setCloud(CloudPlan.fromShop({'plan': 'pro-monthly', 'expiresAt': future, 'maxProducts': 0}));
+    expect(access.maxProducts, 0);
+    access.setCloud(CloudPlan.fromShop({'plan': 'starter', 'expiresAt': future, 'maxProducts': 500}));
+    expect(access.maxProducts, 500);
+    // Expired package falls back to the free limit.
+    access.setCloud(CloudPlan.fromShop({'plan': 'starter', 'expiresAt': nowMs() - 1000, 'maxProducts': 0}));
+    expect(access.maxProducts, Plans.freeMaxProducts);
+    // The super admin's own limit wins, even on a free shop.
+    access.setCloud(CloudPlan.fromShop({'plan': 'free', 'productLimit': 250}));
+    expect(access.maxProducts, 250);
+    // The cached plan keeps the override.
+    access.load();
+    expect(access.maxProducts, 250);
+    access.setCloud(CloudPlan());
+  });
 }

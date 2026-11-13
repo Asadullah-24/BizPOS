@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../core/access.dart';
 import '../core/app_state.dart';
 import '../core/db.dart';
 import '../core/ids.dart';
@@ -155,6 +156,18 @@ class ProductService {
 
   /// Creates or updates a product. For new simple products [openingStock] is
   /// recorded as an "opening" stock movement. Variants are saved as child rows.
+  /// Products (not counting variants) the shop has now.
+  static Future<int> count() async => (await Db.instance.s.scalar(
+          'SELECT COUNT(*) FROM products WHERE deleted_at IS NULL AND parent_id IS NULL'))
+      .toInt();
+
+  /// Throws [ProductLimitError] when the plan's product limit is reached.
+  static Future<void> checkLimit() async {
+    final max = Access.instance.maxProducts;
+    if (max <= 0) return;
+    if (await count() >= max) throw ProductLimitError(max);
+  }
+
   static Future<String> save(
     Product prod, {
     required bool isNew,
@@ -163,6 +176,7 @@ class ProductService {
     List<String> removedVariantIds = const [],
   }) async {
     final userId = AppState.instance.user?.id;
+    if (isNew) await checkLimit();
     return Db.instance.tx((s) async {
       final row = prod.toRow();
       String id;
@@ -251,4 +265,11 @@ class ProductService {
       Db.instance.s.update('categories', id, {'name': name.trim()});
 
   static Future<void> deleteCategory(String id) => Db.instance.s.softDelete('categories', id);
+}
+
+
+/// The shop has as many products as its plan allows.
+class ProductLimitError extends StateError {
+  ProductLimitError(this.limit) : super('Your plan allows $limit products. Upgrade to add more.');
+  final int limit;
 }

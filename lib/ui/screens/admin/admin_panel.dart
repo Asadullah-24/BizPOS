@@ -533,6 +533,20 @@ class ShopAdminDetail extends StatelessWidget {
                 onPressed: () => launchUrl(Uri.parse('https://wa.me/${Vendor.whatsappNumber(phone)}'), mode: LaunchMode.externalApplication),
               ),
             ],
+            const SectionTitle('Limits'),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.inventory_2_rounded, color: Tw.amber500),
+                title: Text(tr('Product limit')),
+                subtitle: Text(d['productLimit'] != null
+                    ? ((d['productLimit'] as num).toInt() == 0 ? tr('Unlimited (set by you)') : '${d['productLimit']} ${tr('products (set by you)')}')
+                    : (p.activeAt(t)
+                        ? (((d['maxProducts'] ?? 0) as num).toInt() == 0 ? tr('Unlimited (package)') : '${d['maxProducts']} ${tr('products (package)')}')
+                        : '${Plans.freeMaxProducts} ${tr('products (free plan)')}')),
+                trailing: const Icon(Icons.edit_rounded),
+                onTap: () => _editProductLimit(context, shopId, d['productLimit'] as num?),
+              ),
+            ),
             const SectionTitle('Owner login'),
             Card(
               child: Column(children: [
@@ -658,6 +672,7 @@ class _PackageEditorState extends State<PackageEditor> {
   late final _price = TextEditingController(text: p.price);
   late final _amount = TextEditingController(text: numText(p.amount));
   late final _days = TextEditingController(text: '${p.days}');
+  late final _maxProducts = TextEditingController(text: '${p.maxProducts}');
   late final _sort = TextEditingController(text: '${p.sort}');
   late final _desc = TextEditingController(text: p.description);
   late final Set<String> _features = {...p.features};
@@ -670,6 +685,7 @@ class _PackageEditorState extends State<PackageEditor> {
       ..price = _price.text.trim()
       ..amount = Fmt.parse(_amount.text)
       ..days = int.tryParse(_days.text.trim()) ?? 30
+      ..maxProducts = int.tryParse(_maxProducts.text.trim()) ?? 0
       ..sort = int.tryParse(_sort.text.trim()) ?? 0
       ..description = _desc.text.trim()
       ..features = _features.toList()
@@ -707,7 +723,9 @@ class _PackageEditorState extends State<PackageEditor> {
         gap,
         TextField(controller: _desc, maxLines: 2, decoration: InputDecoration(labelText: tr('Description'))),
         gap,
-        NumField(controller: _sort, label: 'Order in list'),
+        NumField(controller: _maxProducts, label: 'Max products (0 = unlimited)'),
+        const SizedBox(height: 12),
+                NumField(controller: _sort, label: 'Order in list'),
         const SectionTitle('Features'),
         for (final f in Feature.all)
           CheckboxListTile(
@@ -1064,4 +1082,35 @@ Future<bool> _typeToConfirm(BuildContext context, String name) async {
     ),
   );
   return ok == true;
+}
+
+
+Future<void> _editProductLimit(BuildContext context, String shopId, num? current) async {
+  final c = TextEditingController(text: current == null ? '' : '${current.toInt()}');
+  final r = await showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(tr('Product limit')),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(tr('0 = unlimited. Leave empty to follow the plan (free: ${Plans.freeMaxProducts}).')),
+        const SizedBox(height: 12),
+        TextField(controller: c, keyboardType: TextInputType.number, autofocus: true, decoration: InputDecoration(labelText: tr('Max products'))),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Cancel'))),
+        TextButton(onPressed: () => Navigator.pop(ctx, ''), child: Text(tr('Follow plan'))),
+        FilledButton(onPressed: () => Navigator.pop(ctx, c.text.trim()), child: Text(tr('Save'))),
+      ],
+    ),
+  );
+  if (r == null || !context.mounted) return;
+  final value = int.tryParse(r);
+  await guard(
+    context,
+    () => CloudService.instance.db.doc('shops/$shopId').update({
+      'productLimit': r.isEmpty || value == null ? FieldValue.delete() : value,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }),
+    success: 'Saved',
+  );
 }

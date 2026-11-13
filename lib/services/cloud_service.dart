@@ -463,6 +463,7 @@ class CloudService extends ChangeNotifier {
       'planName': p.name,
       'features': p.features,
       'adFree': p.adFree,
+      'maxProducts': p.maxProducts,
       'expiresAt': expires,
       'status': 'active',
       'updatedAt': FieldValue.serverTimestamp(),
@@ -657,6 +658,7 @@ class CloudService extends ChangeNotifier {
         'planName': 'Free',
         'features': <String>[],
         'adFree': false,
+        'maxProducts': FieldValue.delete(),
         'expiresAt': 0,
         'updatedAt': FieldValue.serverTimestamp(),
       });

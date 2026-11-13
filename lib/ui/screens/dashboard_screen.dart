@@ -23,7 +23,7 @@ import 'expenses_screen.dart';
 import 'inventory_screen.dart';
 import 'parties_screen.dart';
 import 'pos_screen.dart';
-import 'product_form.dart';
+import 'products_screen.dart';
 import 'reports_screen.dart';
 import 'sale_detail_screen.dart';
 
@@ -326,7 +326,7 @@ class _QuickActions extends StatelessWidget {
     void go(Widget page) => Navigator.push(context, MaterialPageRoute(builder: (_) => page));
     final actions = <(String, IconData, Color, VoidCallback)>[
       if (app.allowed(Mod.pos, Perm.sell)) ('New sale', Icons.point_of_sale_rounded, Tw.indigo500, () => go(const PosScreen())),
-      if (app.allowed(Mod.products, Perm.products)) ('Add product', Icons.add_box_rounded, Tw.emerald500, () => go(const ProductForm())),
+      if (app.allowed(Mod.products, Perm.products)) ('Add product', Icons.add_box_rounded, Tw.emerald500, () => openProductForm(context)),
       if (app.allowed(Mod.expenses, Perm.expenses)) ('Expense', Icons.receipt_rounded, Tw.rose500, () => showExpenseForm(context)),
       if (app.allowed(Mod.inventory, Perm.inventory) || app.allowed(Mod.inventory, Perm.products))
         ('Stock', Icons.warehouse_rounded, Tw.amber500, () => go(const InventoryScreen())),

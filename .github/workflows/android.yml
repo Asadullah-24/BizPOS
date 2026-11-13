@@ -66,7 +66,14 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > android/app/release.jks
+            # Tolerate spaces/line breaks introduced when pasting the secret.
+            printf '%s' "$KEYSTORE_BASE64" | tr -d ' \r\n\t' | base64 -d > android/app/release.jks
+            # Store and key passwords are the same unless KEY_PASSWORD is set.
+            KEY_PASSWORD="${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
+            KEY_ALIAS="${KEY_ALIAS:-bizpos}"
+            keytool -list -keystore android/app/release.jks -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null \
+              && echo "Release keystore verified." | tee -a ci.log \
+              || { echo "ERROR: release keystore or KEYSTORE_PASSWORD is wrong." | tee -a ci.log; exit 1; }
             {
               echo "storeFile=release.jks"
               echo "storePassword=$KEYSTORE_PASSWORD"

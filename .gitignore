@@ -36,3 +36,4 @@ ios/Runner/GeneratedPluginRegistrant.*
 .DS_Store
 ci.log
 *.apk
+node_modules/

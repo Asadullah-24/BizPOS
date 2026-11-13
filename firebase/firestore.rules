@@ -1,0 +1,101 @@
+rules_version = '2';
+
+// BizPOS Firestore security rules.
+// Shop owners can only see their own shop; only the super admin can change
+// plans, features, expiry or block a shop. Paste this file in
+// Firebase console > Firestore Database > Rules, or deploy with the Firebase CLI.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'super';
+    }
+
+    function shopOwner(shopId) {
+      return signedIn()
+        && get(/databases/$(database)/documents/shops/$(shopId)).data.ownerUid == request.auth.uid;
+    }
+
+    // Fields a shop owner may set. Plan, features, expiry and status are admin-only.
+    function ownerShopFields() {
+      return ['ownerUid', 'ownerEmail', 'name', 'category', 'phone', 'city', 'currency',
+              'devices', 'createdAt', 'updatedAt', 'plan', 'status'];
+    }
+
+    // Super admins are added by hand in the Firebase console (admins/{uid} with role "super").
+    match /admins/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      // An admin may update their own security settings but never their role.
+      allow update: if isAdmin() && request.auth.uid == uid
+        && request.resource.data.role == resource.data.role;
+      allow create, delete: if false;
+    }
+
+    // Branding and app-wide settings: everyone reads, only admins write.
+    match /settings/{doc} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Packages are public so the app can show prices; only admins edit them.
+    match /packages/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['email', 'name', 'shopId', 'createdAt', 'updatedAt']);
+      allow update: if isAdmin() || (signedIn() && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'shopId', 'updatedAt']));
+      allow delete: if isAdmin();
+    }
+
+    match /shops/{shopId} {
+      allow read: if signedIn() && (resource.data.ownerUid == request.auth.uid || isAdmin());
+
+      // A new shop always starts on the free plan.
+      allow create: if isAdmin() || (signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.plan == 'free'
+        && request.resource.data.status == 'active'
+        && request.resource.data.keys().hasOnly(ownerShopFields()));
+
+      allow update: if isAdmin() || (signedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && resource.data.status != 'blocked'
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['name', 'category', 'phone', 'city', 'currency', 'devices', 'updatedAt']));
+
+      allow delete: if isAdmin();
+
+      // Payment and subscription history.
+      match /subscriptions/{id} {
+        allow read: if isAdmin() || shopOwner(shopId);
+        allow write: if isAdmin();
+      }
+    }
+
+    // Upgrade requests from shops to the super admin.
+    match /requests/{id} {
+      allow read: if signedIn() && (resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && shopOwner(request.resource.data.shopId);
+      allow update, delete: if isAdmin();
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

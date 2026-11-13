@@ -81,7 +81,8 @@ jobs:
       - name: Build APK
         run: |
           set -o pipefail
-          flutter build apk --release 2>&1 | tee -a ci.log
+          # Maven Central sometimes fails for a moment; retry once.
+          flutter build apk --release 2>&1 | tee -a ci.log || (sleep 30 && flutter build apk --release 2>&1 | tee -a ci.log)
           cp build/app/outputs/flutter-apk/app-release.apk BizPOS-${{ github.run_number }}.apk
 
       - uses: actions/upload-artifact@v4

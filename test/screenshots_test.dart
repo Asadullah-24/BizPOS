@@ -191,6 +191,8 @@ void main() {
       await _settle(t, 15);
       await _save(t, file);
     }
+    await t.ensureVisible(find.text('Settings').first);
+    await _settle(t, 4);
     await t.tap(find.text('Settings').first);
     await _settle(t, 15);
     await _save(t, '15-settings');

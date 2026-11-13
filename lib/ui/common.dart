@@ -345,7 +345,9 @@ class ProductThumb extends StatelessWidget {
     ];
     final hash = name.codeUnits.fold<int>(0, (a, c) => (a * 31 + c) & 0x7fffffff);
     final colors = palettes[hash % palettes.length];
-    final words = name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    final all = name.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    final lettered = all.where((w) => RegExp(r'^\p{L}', unicode: true).hasMatch(w)).toList();
+    final words = lettered.isEmpty ? all : lettered;
     final initials = words.isEmpty
         ? '?'
         : (words.length == 1 ? words.first.characters.first : words[0].characters.first + words[1].characters.first).toUpperCase();

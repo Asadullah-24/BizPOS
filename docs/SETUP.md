@@ -58,7 +58,46 @@ and put `release.jks` in `android/app/`.
 
 Never commit the keystore or passwords. This repository is public.
 
-## 4. Google Drive backup
+## 4. Super admin, activation and packages
+
+Only the super admin can activate a phone. A fresh install shows the **Activate this phone** screen with the
+phone's device code and QR. Nothing else opens until a valid code is applied.
+
+**Sign in as super admin**: tap *Super admin* on the activation screen, the login screen or Settings, then enter the
+master password and the 6-digit code from your authenticator app (2FA).
+
+**Activate a shop (on site, offline)**
+1. On your phone open the console > *Activate or upgrade a shop*.
+2. Scan the shop phone's device QR, enter the shop name, owner WhatsApp, category, plan, validity, extra features and credits.
+3. *Generate code*. On the shop phone tap *Scan activation QR* and scan it. Or send the code on WhatsApp and the shop pastes it.
+4. Or run the console on the shop's own phone: *Set up this phone for a shop* > *Apply on this phone*.
+5. Then set up the store: category defaults (grocery, pharmacy, clothing, mobile, restaurant, bakery, salon, car rental,
+   perfume, hardware, stationery, auto parts, custom) load automatically.
+
+Codes are Ed25519-signed and bound to one device. They cannot be edited or used on another phone. Credit codes work once.
+Renew or upgrade from *My shops* (your register of every shop, with expiry and QR).
+
+**Packages** (`lib/core/packages.dart`)
+
+| Plan | Price | Includes |
+| --- | --- | --- |
+| Free trial | 14 days | Everything in Basic, 20 voice credits |
+| Basic | Rs 15,000 one time | Full offline POS, all current modules, low stock shown in app, 20 credits |
+| Pro | Rs 1,000 / month or Rs 10,000 / year | Basic + low-stock and payment alerts, WhatsApp/SMS reminders, unlimited voice, marketplace listing (phase 2) |
+| Credits | 50 = Rs 300, 200 = Rs 1,000, 1000 = Rs 4,000 | Voice stock updates, 1 credit each; 3 free credits per rewarded ad (10 ads/day) |
+
+Any paid feature can also be added on its own to Basic from the console. When a plan expires the shop can still see
+its data and reports, but selling pauses until renewal.
+
+**Master password**: never stored. The keys are derived from it. To change it:
+`python3 tool/admin_key.py "new password"`, add the printed public key to `LicenseKeys.trusted` in
+`lib/core/license.dart`, rebuild, and add the printed authenticator secret to your authenticator app.
+Keep the old key in the list so existing shops keep working.
+
+**AdMob**: the app ships with Google's test ad ids. Before selling, put your AdMob App ID in
+`tool/patch_platforms.py` (Android and iOS) and your rewarded ad unit ids in `lib/services/ads_service.dart`.
+
+## 5. Google Drive backup
 
 Drive backup is optional. Everything else works without it. Google sign-in only works after you register the app
 with Google:
@@ -99,7 +138,7 @@ cannot see the user's other Drive files.
 * Automatic: when the phone comes online, when the app is reopened, and every 15 minutes while open, if anything changed.
 * **Restore / sync** downloads every phone's file and merges. Use it on a new phone, or to combine two phones on one account.
 
-## 5. iOS
+## 6. iOS
 
 * The `ios/` folder is a normal Xcode project (`ios/Runner.xcworkspace`).
 * GitHub Actions has a manual **iOS build (unsigned)** workflow that checks the project compiles on macOS. It cannot produce an
@@ -109,7 +148,7 @@ cannot see the user's other Drive files.
 * Bluetooth printing on iOS only works with BLE printers; many cheap thermal printers are Bluetooth Classic and work on Android only.
   Network (Wi-Fi/LAN) ESC/POS printers and AirPrint work on both.
 
-## 6. Printers
+## 7. Printers
 
 * **Bluetooth (Android)**: pair the printer in phone settings, then Settings > Printer > Find.
 * **Network**: ESC/POS printers on port 9100, set the IP in Settings > Printer.
@@ -117,7 +156,7 @@ cannot see the user's other Drive files.
 * Thermal receipts print ASCII only (printer code page). Urdu text and symbols like ₨ are replaced with `?`.
   The PDF invoice uses the built-in Helvetica font; for Urdu in PDFs bundle a font such as Noto Nastaliq Urdu.
 
-## 7. Developer notes
+## 8. Developer notes
 
 ### Database migrations
 

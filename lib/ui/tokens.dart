@@ -67,7 +67,7 @@ class Tw {
   );
 
   static List<BoxShadow> glow(Color c, {double opacity = 0.45}) => [
-        BoxShadow(color: c.withOpacity(opacity), blurRadius: 24, offset: const Offset(0, 10)),
+        BoxShadow(color: c.withOpacity(opacity), blurRadius: 20, offset: const Offset(0, 6)),
       ];
 
   static const font = 'Inter';

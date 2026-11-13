@@ -302,7 +302,12 @@ class GradientButton extends StatelessWidget {
                 child: busy
                     ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
                     : Row(mainAxisSize: MainAxisSize.min, children: [
-                        Text(label, style: const TextStyle(fontFamily: Tw.font, fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                        Flexible(
+                          child: Text(label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontFamily: Tw.font, fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                        ),
                         if (icon != null) ...[const SizedBox(width: Tw.s2), Icon(icon, color: Colors.white, size: 20)],
                       ]),
               ),
@@ -336,8 +341,12 @@ class GoogleButton extends StatelessWidget {
             else
               const SizedBox(width: 20, height: 20, child: CustomPaint(painter: _GoogleG())),
             const SizedBox(width: Tw.s3),
-            Text(tr('Continue with Google'),
-                style: const TextStyle(fontFamily: Tw.font, fontSize: 15, fontWeight: FontWeight.w600, color: Tw.slate800)),
+            Flexible(
+              child: Text(tr('Continue with Google'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontFamily: Tw.font, fontSize: 15, fontWeight: FontWeight.w600, color: Tw.slate800)),
+            ),
           ]),
         ),
       ),

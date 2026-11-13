@@ -181,11 +181,12 @@ test('shopper accounts and BizPOS coins', async () => {
   await assertSucceeds(getDocs(query(collection(shopper, 'orders'), where('customerUid', '==', 'sam'))));
 
   // Hana delivers and gives coins: at most total/100 * 2 = 20.
+  const hana = as('hana');
   const award = async (coins, orderId = 's1') => {
-    const b = writeBatch(as('hana'));
-    b.update(doc(as('hana'), `orders/${orderId}`), { status: 'delivered', coinsAwarded: coins });
-    b.set(doc(as('hana'), `coinAwards/${orderId}`), { uid: 'sam', coins, shopId: 'paid2' });
-    b.update(doc(as('hana'), 'shoppers/sam'), { coins: increment(coins), lastAward: orderId });
+    const b = writeBatch(hana);
+    b.update(doc(hana, `orders/${orderId}`), { status: 'delivered', coinsAwarded: coins });
+    b.set(doc(hana, `coinAwards/${orderId}`), { uid: 'sam', coins, shopId: 'paid2' });
+    b.update(doc(hana, 'shoppers/sam'), { coins: increment(coins), lastAward: orderId });
     return b.commit();
   };
   await assertFails(award(500));

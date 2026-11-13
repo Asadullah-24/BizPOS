@@ -233,7 +233,7 @@ class StoreService extends ChangeNotifier {
         .listen((q) async {
       newOrders = q.docs.length;
       notifyListeners();
-      final seen = (Local.prefs.getStringList('orders_seen') ?? []).toSet();
+      final seen = (Local.prefs.getStringList(Local.k('orders_seen')) ?? []).toSet();
       for (final d in q.docs) {
         if (seen.contains(d.id)) continue;
         seen.add(d.id);
@@ -245,7 +245,7 @@ class StoreService extends ChangeNotifier {
           '${o['customerName'] ?? ''} · ${o['currency'] ?? 'Rs'} ${((o['total'] ?? 0) as num).toStringAsFixed(0)}',
         );
       }
-      await Local.prefs.setStringList('orders_seen', seen.toList().takeLast(300));
+      await Local.prefs.setStringList(Local.k('orders_seen'), seen.toList().takeLast(300));
     }, onError: (_) {});
   }
 
@@ -255,7 +255,7 @@ class StoreService extends ChangeNotifier {
   Future<void> pushStats({bool force = false}) async {
     final id = _cloud.shopId;
     if (id == null || !_cloud.signedIn) return;
-    final last = Local.prefs.getInt('stats_pushed') ?? 0;
+    final last = Local.prefs.getInt(Local.k('stats_pushed')) ?? 0;
     if (!force && nowMs() - last < 6 * 3600000) return;
     try {
       final s = Db.instance.s;
@@ -276,7 +276,7 @@ class StoreService extends ChangeNotifier {
         },
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      await Local.prefs.setInt('stats_pushed', nowMs());
+      await Local.prefs.setInt(Local.k('stats_pushed'), nowMs());
     } catch (_) {}
   }
 

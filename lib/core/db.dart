@@ -17,6 +17,13 @@ bool asBool(Object? v) => v != null && asInt(v) == 1;
 /// (device id, printer, last backup time, ...).
 class Local {
   static late SharedPreferences prefs;
+
+  /// Store profile on this phone ('' for the first store). Keys that belong
+  /// to one store are prefixed with it so several stores can share a phone.
+  static String scope = '';
+
+  /// Store-specific preference key.
+  static String k(String key) => scope.isEmpty ? key : '${scope}__$key';
 }
 
 /// Thin helper over a sqflite executor (database or transaction).
@@ -95,6 +102,14 @@ class Db {
 
   Future<String> path() async => p.join(await getDatabasesPath(), fileName);
 
+  /// Opens another store's database file (store switching).
+  Future<void> reopen(String file) async {
+    await _db?.close();
+    fileName = file;
+    await _open();
+    notifyChanged();
+  }
+
   Future<void> _open() async {
     _db = await openDatabase(
       await path(),
@@ -142,7 +157,7 @@ class Db {
 
   void notifyChanged() {
     changes.value++;
-    Local.prefs.setInt('last_change_at', nowMs());
+    Local.prefs.setInt(Local.k('last_change_at'), nowMs());
   }
 
   // ------------------------------------------------------------ settings

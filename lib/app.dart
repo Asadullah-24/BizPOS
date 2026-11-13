@@ -10,6 +10,7 @@ import 'services/alert_service.dart';
 import 'services/cloud_service.dart';
 import 'ui/screens/auth/welcome_screen.dart';
 import 'services/drive_service.dart';
+import 'services/profile_service.dart';
 import 'services/store_service.dart';
 import 'ui/screens/lock_screen.dart';
 import 'ui/screens/online_store_screen.dart';
@@ -223,6 +224,7 @@ class _BizPosAppState extends State<BizPosApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    ProfileService.instance.addListener(_profilesChanged);
     // In-app alert for new website orders (a phone notification is also shown).
     StoreService.instance.onNewOrder = (o) {
       _messengerKey.currentState?.showSnackBar(SnackBar(
@@ -236,8 +238,13 @@ class _BizPosAppState extends State<BizPosApp> with WidgetsBindingObserver {
     };
   }
 
+  void _profilesChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    ProfileService.instance.removeListener(_profilesChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -282,8 +289,11 @@ class _BizPosAppState extends State<BizPosApp> with WidgetsBindingObserver {
     final app = context.watch<AppState>();
     context.watch<LicenseService>();
     final cloud = context.watch<CloudService>();
-    final locked = app.onboarded && app.locked;
-    final needsAccount = cloud.configured && cloud.ready && !cloud.signedIn && Local.prefs.getBool('offline_mode') != true;
+    final profiles = ProfileService.instance;
+    // Signed out on this phone: show the welcome screen (stores list) until someone signs in.
+    final signedOut = profiles.signedOut && !cloud.signedIn;
+    final locked = app.onboarded && app.locked && !signedOut;
+    final needsAccount = cloud.configured && cloud.ready && !cloud.signedIn && Local.prefs.getBool(Local.k('offline_mode')) != true;
     final themeKey = app.settings['theme'] ?? 'dark';
     final mode = switch (themeKey) { 'light' => ThemeMode.light, 'system' => ThemeMode.system, _ => ThemeMode.dark };
     if (locked && !_wasLocked) {
@@ -309,7 +319,11 @@ class _BizPosAppState extends State<BizPosApp> with WidgetsBindingObserver {
         GlobalCupertinoLocalizations.delegate,
       ],
       // Free to start: create an account (or go offline), set up the shop, sell.
-      home: app.onboarded ? const Shell() : (needsAccount ? const WelcomeScreen() : const OnboardingScreen()),
+      home: signedOut
+          ? const WelcomeScreen(key: ValueKey('signed-out'))
+          : app.onboarded
+              ? Shell(key: ValueKey('shell-${profiles.activeId}'))
+              : (needsAccount ? const WelcomeScreen() : OnboardingScreen(key: ValueKey('setup-${profiles.activeId}'))),
       // The lock screen sits above every route, so locking never loses the
       // screen underneath and nothing behind it can be reached. It has its own
       // navigator so the super admin screens can open from it.

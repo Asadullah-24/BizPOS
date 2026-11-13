@@ -15,6 +15,7 @@ import '../core/firebase_config.dart';
 import '../core/ids.dart';
 import '../core/license.dart';
 import '../core/packages.dart';
+import 'profile_service.dart';
 import 'store_service.dart';
 
 /// Turns Firebase Auth errors into short English messages.
@@ -147,6 +148,7 @@ class CloudService extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    await _openStoreFor(u);
     try {
       final a = await db.doc('admins/${u.uid}').get();
       isAdmin = a.exists && a.data()?['role'] == 'super';
@@ -178,6 +180,28 @@ class CloudService extends ChangeNotifier {
     }
     notifyListeners();
     return isAdmin;
+  }
+
+  /// Each account has its own store on this phone: open it, or start a new
+  /// one when the open store belongs to another account.
+  Future<void> _openStoreFor(User u) async {
+    final profiles = ProfileService.instance;
+    final mine = profiles.byUid(u.uid);
+    if (mine != null && mine.id != profiles.activeId) {
+      await _shopSub?.cancel();
+      _shopSub = null;
+      shopId = null;
+      shop = null;
+      await profiles.switchTo(mine.id);
+    } else if (mine == null && profiles.active.uid != null && profiles.active.uid != u.uid) {
+      await _shopSub?.cancel();
+      _shopSub = null;
+      shopId = null;
+      shop = null;
+      await profiles.switchTo(await profiles.create(uid: u.uid, email: u.email));
+    }
+    await profiles.rememberActive(uid: u.uid, email: u.email);
+    await profiles.setSignedOut(false);
   }
 
   Future<Map<String, dynamic>> _ensureUserDoc(User u, {String? name}) async {
@@ -311,7 +335,7 @@ class CloudService extends ChangeNotifier {
     await _shopSub?.cancel();
     _shopSub = null;
     await Db.instance.wipe();
-    await Local.prefs.remove('cloud_plan');
+    await Local.prefs.remove(Local.k('cloud_plan'));
     Access.instance.setCloud(CloudPlan());
     revokedNotice = true;
     AppState.instance.lock();

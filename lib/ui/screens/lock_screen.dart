@@ -15,6 +15,7 @@ import '../brand.dart';
 import '../common.dart';
 import '../tokens.dart';
 import 'auth/auth_widgets.dart';
+import 'account_screen.dart';
 import 'admin/super_admin_hub.dart';
 
 /// Sign-in screen shown above the whole app while nobody is signed in.
@@ -379,12 +380,25 @@ class _LockScreenState extends State<LockScreen> {
                 ),
               ),
             ),
-            TextButton.icon(
-              style: TextButton.styleFrom(foregroundColor: Tw.slate400),
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SuperAdminHub())),
-              icon: const Icon(Icons.admin_panel_settings, size: 18),
-              label: Text(tr('Super admin')),
-            ),
+            Wrap(alignment: WrapAlignment.center, children: [
+              TextButton.icon(
+                style: TextButton.styleFrom(foregroundColor: Tw.slate400),
+                onPressed: () async {
+                  if (await confirm(context, 'Switch store',
+                      'Sign out of this store? Its data stays on this phone. You can open another store or sign in with another account.')) {
+                    if (context.mounted) await signOutAndSwitch(context);
+                  }
+                },
+                icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                label: Text(tr('Switch store')),
+              ),
+              TextButton.icon(
+                style: TextButton.styleFrom(foregroundColor: Tw.slate400),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SuperAdminHub())),
+                icon: const Icon(Icons.admin_panel_settings, size: 18),
+                label: Text(tr('Super admin')),
+              ),
+            ]),
             const VendorFooter(onDark: true),
           ]),
         ),

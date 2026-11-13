@@ -8,6 +8,7 @@ import '../../../services/cloud_service.dart';
 import '../../brand.dart';
 import '../../tokens.dart';
 import 'auth_widgets.dart';
+import '../../../services/profile_service.dart';
 import 'sign_in_screen.dart';
 
 /// First screen for a new install: create an account, sign in, or use offline.
@@ -50,6 +51,29 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     if (ok == true && mounted) _done();
   }
 
+  /// Stores kept on this phone (shown after signing out).
+  List<StoreProfile> get _stores {
+    final p = ProfileService.instance;
+    return [
+      if (p.signedOut && (p.active.uid != null || p.active.name.isNotEmpty)) p.active,
+      ...p.others,
+    ];
+  }
+
+  Future<void> _openStore(StoreProfile st) async {
+    final profiles = ProfileService.instance;
+    if (st.uid == null) {
+      // Offline store: open it; its PIN protects it.
+      await profiles.switchTo(st.id);
+      await profiles.setSignedOut(false);
+      CloudService.instance.refresh();
+      return;
+    }
+    final ok = await Navigator.push<bool>(
+        context, MaterialPageRoute(builder: (_) => SignInScreen(initialEmail: st.email)));
+    if (ok == true && mounted) _done();
+  }
+
   Future<void> _offline() async {
     final go = await showDialog<bool>(
       context: context,
@@ -71,7 +95,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       ),
     );
     if (go != true) return;
-    await Local.prefs.setBool('offline_mode', true);
+    final profiles = ProfileService.instance;
+    if (profiles.signedOut || profiles.active.uid != null) {
+      // The open store belongs to an account: start a separate offline store.
+      await profiles.switchTo(await profiles.create());
+    }
+    await Local.prefs.setBool(Local.k('offline_mode'), true);
+    await profiles.setSignedOut(false);
     CloudService.instance.refresh();
   }
 
@@ -144,6 +174,50 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               label: Text(tr('Use without an account (offline)')),
             ),
           ),
+        ],
+        if (_stores.isNotEmpty) ...[
+          const SizedBox(height: Tw.s4),
+          Text(tr('Stores on this phone'),
+              style: const TextStyle(color: Tw.slate300, fontWeight: FontWeight.w700, fontSize: 14)),
+          const SizedBox(height: Tw.s2),
+          for (final st in _stores)
+            Padding(
+              padding: const EdgeInsets.only(bottom: Tw.s2),
+              child: Material(
+                color: Tw.slate900.withOpacity(0.85),
+                borderRadius: BorderRadius.circular(Tw.rXl),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(Tw.rXl),
+                  onTap: _busy ? null : () => _openStore(st),
+                  child: Container(
+                    padding: const EdgeInsets.all(Tw.s3),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(Tw.rXl),
+                      border: Border.all(color: Tw.slate700),
+                    ),
+                    child: Row(children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(gradient: Tw.brandGradient, borderRadius: BorderRadius.circular(Tw.rXl)),
+                        child: Text((st.name.isEmpty ? '?' : st.name.characters.first).toUpperCase(),
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                      ),
+                      const SizedBox(width: Tw.s3),
+                      Expanded(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(st.name.isEmpty ? tr('Store') : st.name,
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
+                          Text(st.email ?? tr('Offline store'), style: const TextStyle(color: Tw.slate400, fontSize: 12.5), overflow: TextOverflow.ellipsis),
+                        ]),
+                      ),
+                      const Icon(Icons.chevron_right_rounded, color: Tw.slate400),
+                    ]),
+                  ),
+                ),
+              ),
+            ),
         ],
         const SizedBox(height: Tw.s2),
         Row(mainAxisAlignment: MainAxisAlignment.center, children: [

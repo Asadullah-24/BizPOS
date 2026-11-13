@@ -20,17 +20,19 @@ class Access extends ChangeNotifier {
   CloudPlan cloud = CloudPlan();
 
   void load() {
-    final raw = Local.prefs.getString('cloud_plan');
+    final raw = Local.prefs.getString(Local.k('cloud_plan'));
+    cloud = CloudPlan();
     if (raw != null) {
       try {
         cloud = CloudPlan.fromShop(jsonDecode(raw) as Map<String, dynamic>);
       } catch (_) {}
     }
+    notifyListeners();
   }
 
   void setCloud(CloudPlan plan) {
     cloud = plan;
-    Local.prefs.setString('cloud_plan', jsonEncode(plan.toJson()));
+    Local.prefs.setString(Local.k('cloud_plan'), jsonEncode(plan.toJson()));
     notifyListeners();
   }
 

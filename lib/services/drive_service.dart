@@ -7,6 +7,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 
 import '../core/db.dart';
+import 'profile_service.dart';
 import '../core/ids.dart';
 import 'backup_service.dart';
 import 'product_service.dart';
@@ -28,13 +29,21 @@ class DriveService extends ChangeNotifier {
   String? lastError;
 
   GoogleSignInAccount? get account => _gsi.currentUser;
-  bool get enabled => Local.prefs.getBool('drive_enabled') ?? false;
-  String? get email => Local.prefs.getString('drive_email');
-  int get lastBackupAt => Local.prefs.getInt('last_backup_at') ?? 0;
-  int get lastChangeAt => Local.prefs.getInt('last_change_at') ?? 0;
+  bool get enabled => Local.prefs.getBool(Local.k('drive_enabled')) ?? false;
+  String? get email => Local.prefs.getString(Local.k('drive_email'));
+  int get lastBackupAt => Local.prefs.getInt(Local.k('last_backup_at')) ?? 0;
+  int get lastChangeAt => Local.prefs.getInt(Local.k('last_change_at')) ?? 0;
   bool get hasPendingChanges => lastChangeAt > lastBackupAt;
 
-  String get _fileName => 'bizpos-${Db.instance.deviceId}.bizpos';
+  /// Each store on this phone has its own backup files (see ProfileService.driveTag).
+  String get _fileName => 'bizpos-${ProfileService.instance.driveTag}${Db.instance.deviceId}.bizpos';
+
+  bool _isMine(String name) {
+    final tag = ProfileService.instance.driveTag;
+    if (!name.startsWith('bizpos-')) return false;
+    if (tag.isEmpty) return !RegExp(r'^bizpos-u').hasMatch(name);
+    return name.startsWith('bizpos-$tag');
+  }
 
   /// Starts automatic backup: whenever the phone comes online, and every 15
   /// minutes while the app is open, if something changed since the last backup.
@@ -68,8 +77,8 @@ class DriveService extends ChangeNotifier {
     try {
       final acc = await _gsi.signIn();
       if (acc == null) return false;
-      await Local.prefs.setBool('drive_enabled', true);
-      await Local.prefs.setString('drive_email', acc.email);
+      await Local.prefs.setBool(Local.k('drive_enabled'), true);
+      await Local.prefs.setString(Local.k('drive_email'), acc.email);
       lastError = null;
       notifyListeners();
       return true;
@@ -97,8 +106,8 @@ class DriveService extends ChangeNotifier {
     try {
       await _gsi.signOut();
     } catch (_) {}
-    await Local.prefs.setBool('drive_enabled', false);
-    await Local.prefs.remove('drive_email');
+    await Local.prefs.setBool(Local.k('drive_enabled'), false);
+    await Local.prefs.remove(Local.k('drive_email'));
     notifyListeners();
   }
 
@@ -146,7 +155,7 @@ class DriveService extends ChangeNotifier {
       final data = BackupService.encode(await BackupService.snapshot(includeImages: false));
       final existing = files.where((f) => f.name == _fileName).toList();
       await _upload(api, _fileName, data, existing.isEmpty ? null : existing.first.id);
-      await Local.prefs.setInt('last_backup_at', startedAt);
+      await Local.prefs.setInt(Local.k('last_backup_at'), startedAt);
       lastError = null;
     } catch (e) {
       lastError = '$e';
@@ -167,7 +176,7 @@ class DriveService extends ChangeNotifier {
       final api = await _api(interactive: true);
       if (api == null) throw StateError('Sign in with Google first.');
       final files = await _list(api);
-      final dataFiles = files.where((f) => (f.name ?? '').startsWith('bizpos-')).toList();
+      final dataFiles = files.where((f) => _isMine(f.name ?? '')).toList();
       if (dataFiles.isEmpty) throw StateError('No backup found on this Google account.');
       for (final f in dataFiles) {
         final bytes = await _download(api, f.id!);

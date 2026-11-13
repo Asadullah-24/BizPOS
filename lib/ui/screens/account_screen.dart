@@ -7,7 +7,9 @@ import '../../core/access.dart';
 import '../../core/format.dart';
 import '../../core/i18n.dart';
 import '../../core/license.dart';
+import '../../core/app_state.dart';
 import '../../services/cloud_service.dart';
+import '../../services/profile_service.dart';
 import '../common.dart';
 import 'auth/sign_in_screen.dart';
 import 'auth/welcome_screen.dart';
@@ -156,10 +158,13 @@ class AccountScreen extends StatelessWidget {
           ),
         ListTile(
           leading: const Icon(Icons.logout),
-          title: Text(tr('Sign out')),
-          subtitle: Text(tr('Your shop data stays on this phone.')),
+          title: Text(tr('Sign out / switch store')),
+          subtitle: Text(tr('Your shop data stays on this phone. Another store can sign in.')),
           onTap: () async {
-            if (await confirm(context, 'Sign out', 'Sign out of your BizPOS account on this phone?')) await cloud.signOut();
+            if (await confirm(context, 'Sign out',
+                'Sign out of this store? Its data stays on this phone and opens again when you sign in. Another store can sign in now.')) {
+              await signOutAndSwitch(context);
+            }
           },
         ),
         const SizedBox(height: 24),
@@ -197,4 +202,14 @@ Future<void> _joinCompany(BuildContext context) async {
   } catch (e) {
     if (context.mounted) showSnack(context, tr(authError(e)), error: true);
   }
+}
+
+
+/// Signs out and shows the welcome screen, where another store can sign in.
+Future<void> signOutAndSwitch(BuildContext context) async {
+  await ProfileService.instance.rememberActive();
+  await ProfileService.instance.setSignedOut(true);
+  AppState.instance.lock();
+  await CloudService.instance.signOut();
+  if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
 }

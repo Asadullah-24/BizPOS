@@ -28,8 +28,11 @@ const _rememberKey = 'auth_last_email';
 
 /// Email sign-in and sign-up, switchable with the tabs at the top.
 class SignInScreen extends StatefulWidget {
-  const SignInScreen({super.key, this.signUp = false});
+  const SignInScreen({super.key, this.signUp = false, this.initialEmail});
   final bool signUp;
+
+  /// Prefilled email (choosing a store on this phone).
+  final String? initialEmail;
 
   @override
   State<SignInScreen> createState() => _SignInScreenState();
@@ -52,7 +55,7 @@ class _SignInScreenState extends State<SignInScreen> {
   @override
   void initState() {
     super.initState();
-    final last = Local.prefs.getString(_rememberKey);
+    final last = widget.initialEmail ?? Local.prefs.getString(_rememberKey);
     if (last != null && !widget.signUp) _email.text = last;
     _password.addListener(() {
       if (_signUp) setState(() {});

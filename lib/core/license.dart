@@ -224,11 +224,10 @@ class LicenseService extends ChangeNotifier {
       planKey = mine.last.plan ?? 'basic';
       planExpires = mine.last.expires;
     }
-    final named = mine.where((p) => p.storeId != null).toList();
-    if (named.isNotEmpty) {
-      storeId = named.last.storeId;
-      storeName = named.last.storeName;
-    }
+    final withId = mine.where((p) => p.storeId != null).toList();
+    if (withId.isNotEmpty) storeId = withId.last.storeId;
+    final named = mine.where((p) => p.storeName != null).toList();
+    if (named.isNotEmpty) storeName = named.last.storeName;
     final branded = mine.where((p) => p.footer != null || p.phone != null).toList();
     if (branded.isNotEmpty) {
       footer = branded.last.footer ?? footer;

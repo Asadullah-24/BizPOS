@@ -66,7 +66,10 @@ class Tw {
     colors: [indigo500, violet600],
   );
 
-  static List<BoxShadow> glow(Color c, {double opacity = 0.45}) => [
+  /// Screenshot tests turn soft shadows off (the test renderer draws them hard).
+  static bool shadows = true;
+
+  static List<BoxShadow> glow(Color c, {double opacity = 0.45}) => !shadows ? const [] : [
         BoxShadow(color: c.withOpacity(opacity), blurRadius: 20, offset: const Offset(0, 6)),
       ];
 

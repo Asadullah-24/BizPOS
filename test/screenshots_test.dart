@@ -12,6 +12,10 @@ import 'package:bizpos/models/models.dart';
 import 'package:bizpos/services/auth_service.dart';
 import 'package:bizpos/services/product_service.dart';
 import 'package:bizpos/services/setup_service.dart';
+import 'package:bizpos/services/cart.dart';
+import 'package:bizpos/services/ledger_service.dart';
+import 'package:bizpos/services/sales_service.dart';
+import 'package:bizpos/ui/tokens.dart';
 import 'package:bizpos/ui/screens/admin/super_admin_hub.dart';
 import 'package:bizpos/ui/screens/super_admin/super_admin_login.dart';
 import 'package:bizpos/core/db.dart';
@@ -97,7 +101,7 @@ Widget _wrapApp() => RepaintBoundary(
 Future<void> _save(WidgetTester t, String name) async {
   await t.runAsync(() async {
     final boundary = _shot.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-    final image = await boundary.toImage(pixelRatio: 1.5);
+    final image = await boundary.toImage(pixelRatio: 2.5);
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
     final dir = Directory('build/screens')..createSync(recursive: true);
     File('${dir.path}/$name.png').writeAsBytesSync(bytes!.buffer.asUint8List());
@@ -132,8 +136,38 @@ void main() {
       pin: '1234',
       language: 'en',
     );
-    for (final (name, cost, price, stock) in [('Basmati Rice 5kg', 1800.0, 2100.0, 24.0), ('Sugar 1kg', 140.0, 160.0, 2.0), ('Cooking Oil 1L', 520.0, 580.0, 1.0)]) {
-      await ProductService.save(Product(id: newId(), name: name, costPrice: cost, salePrice: price, lowStock: 5), isNew: true, openingStock: stock);
+    Tw.shadows = false;
+    // Demo shop data so the screens look like a real day in a shop.
+    final ids = <String, Product>{};
+    for (final (name, cost, price, stock) in [
+      ('Basmati Rice 5kg', 1800.0, 2100.0, 24.0),
+      ('Sugar 1kg', 140.0, 160.0, 2.0),
+      ('Cooking Oil 1L', 520.0, 580.0, 1.0),
+      ('Tea Leaves 900g', 1150.0, 1350.0, 18.0),
+      ('Milk Pack 1L', 250.0, 280.0, 40.0),
+      ('Flour 10kg', 1350.0, 1550.0, 12.0),
+      ('Lemon Soap', 90.0, 120.0, 60.0),
+      ('Mineral Water 1.5L', 70.0, 100.0, 48.0),
+    ]) {
+      final p = Product(id: newId(), name: name, costPrice: cost, salePrice: price, lowStock: 5);
+      await ProductService.save(p, isNew: true, openingStock: stock);
+      ids[name] = (await ProductService.byId(p.id))!;
+    }
+    final account = (await LedgerService.defaultAccount())!;
+    final list = ids.values.toList();
+    final now = DateTime.now();
+    for (var day = 6; day >= 0; day--) {
+      for (var n = 0; n < 3 + (day * 7) % 5; n++) {
+        final cart = Cart();
+        for (var k = 0; k < 2 + (n % 3); k++) {
+          final p = list[(day * 3 + n + k) % list.length];
+          cart.add(CartLine(productId: p.id, name: p.name, unitPrice: p.salePrice, qty: 1.0 + (k % 2), costPrice: p.costPrice, trackStock: false));
+        }
+        final total = cart.compute(taxEnabled: false, taxInclusive: false).total;
+        final r = await SalesService.completeSale(cart, [PaymentLine(accountId: account.id, accountName: account.name, amount: total)]);
+        final at = DateTime(now.year, now.month, now.day, 10 + n).subtract(Duration(days: day)).millisecondsSinceEpoch;
+        await Db.instance.raw.rawUpdate('UPDATE sales SET created_at = ? WHERE id = ?', [at, r.saleId]);
+      }
     }
   });
 
@@ -190,6 +224,16 @@ void main() {
       await t.tap(find.text(tab).last);
       await _settle(t, 15);
       await _save(t, file);
+      if (tab == 'Sell') {
+        for (final name in ['Basmati Rice 5kg', 'Tea Leaves 900g', 'Milk Pack 1L', 'Milk Pack 1L']) {
+          final f = find.text(name);
+          if (f.evaluate().isNotEmpty) {
+            await t.tap(f.first, warnIfMissed: false);
+            await _settle(t, 3);
+          }
+        }
+        await _save(t, '11b-sell-cart');
+      }
     }
     await t.ensureVisible(find.text('Settings').first);
     await _settle(t, 4);

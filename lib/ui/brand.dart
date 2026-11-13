@@ -131,9 +131,9 @@ class GlassCard extends StatelessWidget {
         color: Tw.slate900.withOpacity(0.82),
         borderRadius: BorderRadius.circular(Tw.r3xl),
         border: Border.all(color: Colors.white.withOpacity(0.08)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.45), blurRadius: 40, offset: const Offset(0, 20)),
-        ],
+        boxShadow: Tw.shadows
+            ? [BoxShadow(color: Colors.black.withOpacity(0.45), blurRadius: 40, offset: const Offset(0, 20))]
+            : null,
       ),
       child: Theme(data: authTheme(context), child: child),
     );

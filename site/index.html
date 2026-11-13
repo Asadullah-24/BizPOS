@@ -169,8 +169,10 @@ function productCard(item, cur, { storeName = '', href = '', deal = null, add = 
 
 async function home() {
   document.title = `${brand} Marketplace`;
+  let setupError = false;
   const [storesSnap, featuredSnap] = await Promise.all([
-    getDocs(query(collection(db, 'storefronts'), where('published', '==', true), where('adminHidden', '==', false))),
+    getDocs(query(collection(db, 'storefronts'), where('published', '==', true), where('adminHidden', '==', false)))
+      .catch((e) => { console.error(e); setupError = true; return { docs: [] }; }),
     getDocs(collection(db, 'featured')).catch(() => ({ docs: [] })),
   ]);
   const stores = storesSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter(visible);
@@ -220,7 +222,9 @@ async function home() {
                 </span>
                 <span class="ml-auto text-indigo-600 font-semibold text-sm">Visit →</span>
               </a>`).join('')}
-          </div>` : `<p class="mt-4 text-slate-500">${q ? 'Nothing matches your search.' : 'Shops are joining soon.'}</p>`}
+          </div>` : `<p class="mt-4 text-slate-500">${q ? 'Nothing matches your search.'
+            : setupError ? 'Shops could not be loaded. (Admin: publish the latest Firestore rules.)'
+            : 'Shops are joining soon.'}</p>`}
       </section>`;
   };
   render();

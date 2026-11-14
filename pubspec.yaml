@@ -51,7 +51,7 @@ dependencies:
   speech_to_text: ^7.3.0
   flutter_local_notifications: ^19.5.0
   local_auth: ^2.3.0
-  image: ^4.2.0
+  image: 4.5.4
   geolocator: ^14.0.2
   url_launcher: ^6.3.0
 

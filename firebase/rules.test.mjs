@@ -281,3 +281,10 @@ test('account deletion: users remove their own data only', async () => {
   await assertSucceeds(deleteDoc(doc(as('alice'), 'users/alice')));
   await assertSucceeds(deleteDoc(doc(as('hana'), 'shoppers/hana')));
 });
+
+test('only the super admin verifies websites for import', async () => {
+  await assertFails(updateDoc(doc(as('alice'), 'shops/s1'), { importSites: ['daraz.pk'] }));
+  await assertSucceeds(setDoc(doc(as('alice'), 'requests/r9'), { type: 'import', site: 'tajoree.com', ownerUid: 'alice', shopId: 's1', status: 'pending' }));
+  await assertFails(updateDoc(doc(as('alice'), 'requests/r9'), { status: 'approved' }));
+  await assertSucceeds(updateDoc(doc(as('boss'), 'shops/s1'), { importSites: ['tajoree.com'] }));
+});

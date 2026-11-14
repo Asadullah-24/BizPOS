@@ -16,6 +16,7 @@ import '../auth/sign_in_screen.dart';
 import '../super_admin/super_admin_login.dart';
 import '../../../services/biometric_service.dart';
 import '../../tokens.dart';
+import '../notices_screen.dart';
 import 'company_form.dart';
 import 'store_admin.dart';
 
@@ -294,6 +295,16 @@ class _Overview extends StatelessWidget {
                 builder: (ctx, s) => StatCard(label: 'Pending requests', value: '${(s.data ?? []).length}', icon: Icons.mark_email_unread_rounded, color: Tw.amber500),
               ),
             ],
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.campaign_rounded, color: Tw.indigo400),
+              title: Text(tr('Announcements and offers')),
+              subtitle: Text(tr('Send a message to all shops and the website, or give a free plan offer.')),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NoticesAdmin())),
+            ),
           ),
           const SizedBox(height: 16),
           Card(

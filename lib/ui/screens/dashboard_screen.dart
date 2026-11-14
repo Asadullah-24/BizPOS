@@ -20,6 +20,7 @@ import '../charts.dart';
 import '../common.dart';
 import '../../services/store_service.dart';
 import '../tokens.dart';
+import 'notices_screen.dart';
 import 'online_store_screen.dart';
 import 'expenses_screen.dart';
 import 'inventory_screen.dart';
@@ -171,6 +172,7 @@ class DashboardScreen extends StatelessWidget {
           return RefreshIndicator(
             onRefresh: () async => Db.instance.refresh(),
             child: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
+              const AnnouncementBanners(),
               ListenableBuilder(
                 listenable: StoreService.instance,
                 builder: (context, _) {

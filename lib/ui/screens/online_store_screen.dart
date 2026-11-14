@@ -3,6 +3,8 @@ import 'dart:ui' as ui;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -77,6 +79,9 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen> {
             stream: store.items(shopId),
             builder: (context, itemSnap) {
               final online = {for (final i in itemSnap.data ?? const <Map<String, dynamic>>[]) i['id'] as String};
+              final photoCount = {
+                for (final i in itemSnap.data ?? const <Map<String, dynamic>>[]) i['id'] as String: ((i['photos'] ?? 0) as num).toInt()
+              };
               return ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 32), children: [
                 _Header(
                   url: url,
@@ -95,6 +100,8 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen> {
                   ),
                 const SizedBox(height: 16),
                 _OrdersTile(),
+                const SizedBox(height: 12),
+                _LocationCard(card: card),
                 const SizedBox(height: 16),
                 Row(children: [
                   Expanded(child: Text(tr('Products on your store'), style: theme.textTheme.titleMedium)),
@@ -125,7 +132,23 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen> {
                           SwitchListTile(
                             secondary: ProductThumb(image: sorted[i].image, name: sorted[i].name, size: 44),
                             title: Text(sorted[i].displayName, maxLines: 1, overflow: TextOverflow.ellipsis),
-                            subtitle: Text(Fmt.money(sorted[i].salePrice)),
+                            subtitle: online.contains(sorted[i].id)
+                                ? Row(children: [
+                                    Text(Fmt.money(sorted[i].salePrice)),
+                                    const SizedBox(width: 8),
+                                    InkWell(
+                                      onTap: () => Navigator.push(context,
+                                          MaterialPageRoute(builder: (_) => ProductPhotosScreen(product: sorted[i]))),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 4),
+                                        child: Text(
+                                          '${tr('Photos')} (${photoCount[sorted[i].id] ?? 0}/${StoreService.maxPhotos})',
+                                          style: const TextStyle(color: Tw.indigo400, fontWeight: FontWeight.w700),
+                                        ),
+                                      ),
+                                    ),
+                                  ])
+                                : Text(Fmt.money(sorted[i].salePrice)),
                             value: online.contains(sorted[i].id),
                             onChanged: _busy.contains(sorted[i].id)
                                 ? null
@@ -410,6 +433,16 @@ class _OrderCard extends StatelessWidget {
               Expanded(child: Text('${order['address']}')),
             ]),
           ],
+          if (status == 'new')
+            FutureBuilder<String?>(
+              future: OnlineOrderService.priceIssue(order),
+              builder: (context, snap) => snap.data == null
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: _Note(icon: Icons.warning_amber_rounded, color: Tw.amber500, text: snap.data!),
+                    ),
+            ),
           const Divider(height: 20),
           for (final it in items)
             Padding(
@@ -525,4 +558,236 @@ class _Pill extends StatelessWidget {
         decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(999)),
         child: Text(text, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12.5)),
       );
+}
+
+
+/// Photos and description of one product on the website.
+class ProductPhotosScreen extends StatefulWidget {
+  const ProductPhotosScreen({super.key, required this.product});
+  final Product product;
+
+  @override
+  State<ProductPhotosScreen> createState() => _ProductPhotosScreenState();
+}
+
+class _ProductPhotosScreenState extends State<ProductPhotosScreen> {
+  bool _busy = false;
+  final _desc = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    StoreService.instance.description(widget.product.id).then((t) {
+      if (mounted && _desc.text.isEmpty) _desc.text = t;
+    }).catchError((_) {});
+  }
+
+  @override
+  void dispose() {
+    _desc.dispose();
+    super.dispose();
+  }
+
+  Future<void> _add(int existing, ImageSource source) async {
+    final left = StoreService.maxPhotos - existing;
+    if (left <= 0) return;
+    final picker = ImagePicker();
+    final files = source == ImageSource.camera
+        ? [if (await picker.pickImage(source: ImageSource.camera, maxWidth: 2400) case final x?) x]
+        : await picker.pickMultiImage(maxWidth: 2400, limit: left);
+    if (files.isEmpty || !mounted) return;
+    setState(() => _busy = true);
+    await guard(context, () async {
+      final bytes = [for (final f in files.take(left)) await f.readAsBytes()];
+      final n = await StoreService.instance.addPhotos(widget.product.id, bytes, existing: existing);
+      if (mounted) showSnack(context, '$n ${tr('photos added')}');
+    });
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.product.displayName)),
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: StoreService.instance.photos(widget.product.id),
+        builder: (context, snap) {
+          final photos = snap.data ?? const [];
+          return ListView(padding: const EdgeInsets.all(16), children: [
+            Text(tr('Photos on your online store'), style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(tr('Up to 4 photos. They are made smaller automatically and stay clear.'),
+                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            const SizedBox(height: 12),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              children: [
+                for (var i = 0; i < photos.length; i++)
+                  Stack(fit: StackFit.expand, children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.memory(UriData.parse('${photos[i]['data']}').contentAsBytes(), fit: BoxFit.cover),
+                    ),
+                    if (i == 0)
+                      Positioned(
+                        left: 8,
+                        top: 8,
+                        child: _Pill(text: tr('Main'), color: Tw.emerald400),
+                      ),
+                    Positioned(
+                      right: 6,
+                      top: 6,
+                      child: IconButton.filled(
+                        style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                        icon: const Icon(Icons.delete_rounded, color: Colors.white, size: 20),
+                        onPressed: () => guard(context,
+                            () => StoreService.instance.deletePhoto(widget.product.id, photos[i]['id'] as String, photos.length - 1)),
+                      ),
+                    ),
+                  ]),
+                if (photos.length < StoreService.maxPhotos)
+                  Material(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(16),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: _busy ? null : () => _add(photos.length, ImageSource.gallery),
+                      child: Center(
+                        child: _busy
+                            ? const CircularProgressIndicator()
+                            : Column(mainAxisSize: MainAxisSize.min, children: [
+                                const Icon(Icons.add_photo_alternate_rounded, size: 36),
+                                const SizedBox(height: 6),
+                                Text(tr('Add from gallery')),
+                              ]),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (photos.length < StoreService.maxPhotos)
+              OutlinedButton.icon(
+                onPressed: _busy ? null : () => _add(photos.length, ImageSource.camera),
+                icon: const Icon(Icons.photo_camera_rounded),
+                label: Text(tr('Take a photo')),
+              ),
+            const SizedBox(height: 20),
+            Text(tr('Description'), style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _desc,
+              maxLines: 4,
+              maxLength: 500,
+              decoration: InputDecoration(hintText: tr('Size, colour, brand, warranty, delivery time...')),
+            ),
+            FilledButton(
+              onPressed: () => guard(context, () => StoreService.instance.setDescription(widget.product.id, _desc.text), success: 'Saved'),
+              child: Text(tr('Save description')),
+            ),
+          ]);
+        },
+      ),
+    );
+  }
+}
+
+
+/// Store location and delivery area, used for "shops near you" on the website.
+class _LocationCard extends StatefulWidget {
+  const _LocationCard({required this.card});
+  final Map<String, dynamic>? card;
+
+  @override
+  State<_LocationCard> createState() => _LocationCardState();
+}
+
+class _LocationCardState extends State<_LocationCard> {
+  bool _busy = false;
+
+  String get _area => '${widget.card?['deliveryArea'] ?? 'near'}';
+  int get _km => ((widget.card?['deliveryKm'] ?? 5) as num).toInt();
+  bool get _hasLocation => widget.card?['lat'] != null;
+
+  Future<Position> _position() async {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      throw StateError('Turn on location (GPS) on your phone, then try again.');
+    }
+    var perm = await Geolocator.checkPermission();
+    if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
+    if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
+      throw StateError('Allow location for BizPOS in phone settings to set your store location.');
+    }
+    return Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, timeLimit: Duration(seconds: 20)),
+    );
+  }
+
+  Future<void> _save({bool locate = false, String? area, int? km}) async {
+    setState(() => _busy = true);
+    await guard(context, () async {
+      Position? pos;
+      if (locate) pos = await _position();
+      await StoreService.instance.setLocation(lat: pos?.latitude, lng: pos?.longitude, area: area ?? _area, km: km ?? _km);
+    }, success: locate ? 'Store location saved' : null);
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(Icons.location_on_rounded, color: _hasLocation ? Tw.emerald500 : Tw.amber500),
+            const SizedBox(width: 8),
+            Expanded(child: Text(tr('Store location and delivery'), style: theme.textTheme.titleMedium)),
+          ]),
+          const SizedBox(height: 4),
+          Text(
+            _hasLocation
+                ? tr('Customers near you see your store first.')
+                : tr('Set your location so nearby customers can find your store.'),
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 12),
+          SegmentedButton<String>(
+            segments: [
+              ButtonSegment(value: 'near', icon: const Icon(Icons.near_me_rounded), label: Text(tr('Nearby only'))),
+              ButtonSegment(value: 'pakistan', icon: const Icon(Icons.local_shipping_rounded), label: Text(tr('All Pakistan'))),
+            ],
+            selected: {_area},
+            onSelectionChanged: _busy ? null : (v) => _save(area: v.first),
+          ),
+          if (_area == 'near') ...[
+            const SizedBox(height: 8),
+            Row(children: [
+              Text(tr('Delivery up to')),
+              const SizedBox(width: 8),
+              DropdownButton<int>(
+                value: const [2, 5, 10, 20, 50].contains(_km) ? _km : 5,
+                items: [for (final k in const [2, 5, 10, 20, 50]) DropdownMenuItem(value: k, child: Text('$k km'))],
+                onChanged: _busy ? null : (v) => _save(km: v),
+              ),
+            ]),
+          ],
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _busy ? null : () => _save(locate: true),
+            icon: _busy
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.my_location_rounded),
+            label: Text(_hasLocation ? tr('Update to my current location') : tr('Use my current location (stand in your shop)')),
+          ),
+        ]),
+      ),
+    );
+  }
 }

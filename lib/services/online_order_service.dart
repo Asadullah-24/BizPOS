@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/app_state.dart';
 import '../core/db.dart';
 import '../core/format.dart';
+import '../core/i18n.dart';
 import 'cart.dart';
 import 'cloud_service.dart';
 import 'ledger_service.dart';
@@ -48,6 +49,30 @@ class OnlineOrderService {
   static Future<String?> saleFor(String orderId) async {
     final r = await Db.instance.s.one('SELECT id FROM sales WHERE ref = ? AND deleted_at IS NULL', [orderId]);
     return r?['id'] as String?;
+  }
+
+  /// Checks an order against this shop's own prices before it is confirmed:
+  /// a website order carries the prices the customer's browser sent.
+  static Future<String?> priceIssue(Map<String, dynamic> o) async {
+    final items = ((o['items'] as List?) ?? []).cast<Map>();
+    var sum = 0.0;
+    final low = <String>[];
+    for (final it in items) {
+      final price = ((it['price'] ?? 0) as num).toDouble();
+      final qty = ((it['qty'] ?? 1) as num).toDouble();
+      sum += price * qty;
+      final pid = '${it['id'] ?? ''}';
+      final p = pid.isEmpty ? null : await ProductService.byId(pid);
+      if (p != null && price < p.salePrice - 0.5) {
+        low.add('${it['name']}: ${Fmt.money(price)} (${tr('your price')} ${Fmt.money(p.salePrice)})');
+      }
+    }
+    final total = ((o['total'] ?? 0) as num).toDouble();
+    final parts = <String>[
+      if ((sum - total).abs() > 1) '${tr('Order total does not match its items')}: ${Fmt.money(total)} / ${Fmt.money(sum)}.',
+      if (low.isNotEmpty) '${tr('Lower than your price (fine if it is a deal)')}: ${low.join(', ')}.',
+    ];
+    return parts.isEmpty ? null : parts.join('\n');
   }
 
   static Future<String> confirm(Map<String, dynamic> o) async {

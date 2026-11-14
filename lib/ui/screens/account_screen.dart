@@ -8,6 +8,7 @@ import '../../core/format.dart';
 import '../../core/i18n.dart';
 import '../../core/license.dart';
 import '../../core/app_state.dart';
+import '../../core/db.dart';
 import '../../services/cloud_service.dart';
 import '../../services/profile_service.dart';
 import '../common.dart';
@@ -157,6 +158,12 @@ class AccountScreen extends StatelessWidget {
             onTap: () => guard(context, () => cloud.resetPassword(u.email ?? ''), success: 'Password reset link sent'),
           ),
         ListTile(
+          leading: const Icon(Icons.delete_forever_rounded, color: Colors.red),
+          title: Text(tr('Delete my account'), style: const TextStyle(color: Colors.red)),
+          subtitle: Text(tr('Removes your account, online store and company record')),
+          onTap: () => _deleteAccount(context),
+        ),
+        ListTile(
           leading: const Icon(Icons.logout),
           title: Text(tr('Sign out / switch store')),
           subtitle: Text(tr('Your shop data stays on this phone. Another store can sign in.')),
@@ -212,4 +219,65 @@ Future<void> signOutAndSwitch(BuildContext context) async {
   AppState.instance.lock();
   await CloudService.instance.signOut();
   if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+}
+
+
+/// Account deletion (Google Play requirement): confirm, re-enter password,
+/// optionally erase this store's data from the phone.
+Future<void> _deleteAccount(BuildContext context) async {
+  final cloud = CloudService.instance;
+  final password = TextEditingController();
+  final typed = TextEditingController();
+  var eraseLocal = true;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 36),
+        title: Text(tr('Delete my account')),
+        content: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text(tr('This deletes your BizPOS account, your online store and its products, and your company record. Paid plans end. This cannot be undone.')),
+            const SizedBox(height: 12),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: eraseLocal,
+              onChanged: (v) => setState(() => eraseLocal = v ?? true),
+              title: Text(tr('Also erase this store\'s data from this phone')),
+            ),
+            if (cloud.usesPassword)
+              TextField(
+                controller: password,
+                obscureText: true,
+                decoration: InputDecoration(labelText: tr('Account password')),
+              ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: typed,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(labelText: tr('Type DELETE to confirm')),
+            ),
+          ]),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Cancel'))),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: typed.text.trim().toUpperCase() == 'DELETE' ? () => Navigator.pop(ctx, true) : null,
+            child: Text(tr('Delete')),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  final done = await guard(context, () async {
+    await cloud.deleteAccount(password: password.text);
+    if (eraseLocal) await Db.instance.wipe();
+  }, success: 'Your account was deleted');
+  if (done && context.mounted) {
+    await ProfileService.instance.setSignedOut(true);
+    await AppState.instance.load();
+    if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+  }
 }

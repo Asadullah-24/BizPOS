@@ -9,8 +9,10 @@ import '../../core/license.dart';
 import '../../core/packages.dart';
 import '../../services/alert_service.dart';
 import '../../services/cloud_service.dart';
+import '../../services/notice_service.dart';
 import '../common.dart';
 import 'activation_screen.dart';
+import 'notices_screen.dart';
 import 'auth/welcome_screen.dart';
 import 'scanner_screen.dart';
 
@@ -62,6 +64,14 @@ class _PlanScreenState extends State<PlanScreen> {
             ]),
           ),
         ),
+        if (!access.isPaid)
+          ListenableBuilder(
+            listenable: NoticeService.instance,
+            builder: (context, _) => Column(children: [
+              for (final o in NoticeService.instance.offers)
+                Padding(padding: const EdgeInsets.only(top: 12), child: OfferCard(offer: o)),
+            ]),
+          ),
         const SectionTitle('Features'),
         for (final f in Feature.all)
           ListTile(

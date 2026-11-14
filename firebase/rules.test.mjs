@@ -211,3 +211,73 @@ test('shopper accounts and BizPOS coins', async () => {
   // Anyone with the order number can track it.
   await assertSucceeds(getDoc(doc(anon(), 'orders/c3')));
 });
+
+test('product photos: owner adds small ones, others cannot', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), 'storefronts/s1'), { ownerUid: 'alice', shopId: 's1', published: true, adminHidden: false });
+    await setDoc(doc(ctx.firestore(), 'storefronts/s1/items/i1'), { name: 'Tea' });
+  });
+  const small = 'data:image/jpeg;base64,' + 'A'.repeat(1000);
+  await assertSucceeds(setDoc(doc(as('alice'), 'storefronts/s1/items/i1/photos/a'), { data: small, order: 0 }));
+  await assertFails(setDoc(doc(as('alice'), 'storefronts/s1/items/i1/photos/b'), { data: 'A'.repeat(700000), order: 1 }));
+  await assertFails(setDoc(doc(as('bob'), 'storefronts/s1/items/i1/photos/c'), { data: small, order: 2 }));
+  await assertSucceeds(getDoc(doc(anon(), 'storefronts/s1/items/i1/photos/a')));
+  await assertSucceeds(deleteDoc(doc(as('alice'), 'storefronts/s1/items/i1/photos/a')));
+});
+
+test('announcements and offers: everyone reads, only admins write', async () => {
+  await assertSucceeds(setDoc(doc(as('boss'), 'announcements/a1'), { title: 'Eid sale', active: true, audience: 'all' }));
+  await assertFails(setDoc(doc(as('alice'), 'announcements/a2'), { title: 'spam', active: true }));
+  await assertSucceeds(getDoc(doc(anon(), 'announcements/a1')));
+  await assertFails(setDoc(doc(as('alice'), 'offers/o9'), { title: 'free forever', active: true }));
+});
+
+const claim = (db, { shop = 's1', offer = 'o1', days = 15, pkgFields = {} } = {}) => {
+  const b = writeBatch(db);
+  b.update(doc(db, `shops/${shop}`), {
+    plan: 'p1', planName: 'Pro', features: ['voice'], adFree: true, maxProducts: 0, onlineProducts: 3,
+    expiresAt: Date.now() + days * 86400000, offer, ...pkgFields,
+  });
+  b.set(doc(db, `offerClaims/${shop}_${offer}`), { shopId: shop, offerId: offer, ownerUid: 'alice' });
+  return b.commit();
+};
+
+test('offer: a free shop with enough products claims it once', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const d = ctx.firestore();
+    await setDoc(doc(d, 'offers/o1'), { title: '15 days Pro', packageId: 'p1', days: 15, minProducts: 50, active: true, startAt: Date.now() - 1000, endAt: 0 });
+    await setDoc(doc(d, 'offers/o2'), { title: 'old', packageId: 'p1', days: 15, minProducts: 0, active: false, startAt: 0, endAt: 0 });
+  });
+  const db = as('alice');
+  // Not enough products yet.
+  await assertFails(claim(db));
+  await updateDoc(doc(db, 'shops/s1'), { stats: { products: 60 } });
+  // More days than the offer, other features, or an inactive offer: refused.
+  await assertFails(claim(db, { days: 90 }));
+  await assertFails(claim(db, { pkgFields: { features: ['voice', 'reports'] } }));
+  await assertFails(claim(db, { offer: 'o2' }));
+  // Plan change without the claim record: refused.
+  await assertFails(updateDoc(doc(db, 'shops/s1'), { plan: 'p1', planName: 'Pro', features: ['voice'], adFree: true, maxProducts: 0, onlineProducts: 3, expiresAt: Date.now() + 86400000, offer: 'o1' }));
+  await assertSucceeds(claim(db));
+  // Second time: refused.
+  await env.withSecurityRulesDisabled(async (ctx) => updateDoc(doc(ctx.firestore(), 'shops/s1'), { plan: 'free', expiresAt: 1 }));
+  await assertFails(claim(db));
+  // Someone else's shop: refused.
+  await assertFails(claim(as('bob')));
+});
+
+test('account deletion: users remove their own data only', async () => {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const d = ctx.firestore();
+    await setDoc(doc(d, 'users/alice'), { email: 'a@x.pk', shopId: 's1' });
+    await setDoc(doc(d, 'shoppers/hana'), { name: 'Hana', coins: 5 });
+    await setDoc(doc(d, 'storefronts/s1'), { ownerUid: 'alice', shopId: 's1', published: true, adminHidden: false });
+  });
+  await assertFails(deleteDoc(doc(as('bob'), 'users/alice')));
+  await assertFails(deleteDoc(doc(as('bob'), 'shops/s1')));
+  await assertFails(deleteDoc(doc(as('alice'), 'shoppers/hana')));
+  await assertSucceeds(deleteDoc(doc(as('alice'), 'storefronts/s1')));
+  await assertSucceeds(deleteDoc(doc(as('alice'), 'shops/s1')));
+  await assertSucceeds(deleteDoc(doc(as('alice'), 'users/alice')));
+  await assertSucceeds(deleteDoc(doc(as('hana'), 'shoppers/hana')));
+});

@@ -6,6 +6,10 @@
   <title>BizPOS Marketplace</title>
   <meta name="description" content="Order from local shops on BizPOS.">
   <meta name="theme-color" content="#4f46e5">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -42,6 +46,7 @@
     </div>
   </header>
 
+  <div id="notices" class="max-w-6xl mx-auto px-4"></div>
   <main id="app" class="max-w-6xl mx-auto px-4 pb-28">
     <div class="py-24 text-center text-slate-500" id="loading">
       <div class="w-10 h-10 mx-auto mb-4 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin"></div>
@@ -52,6 +57,11 @@
   <footer class="border-t border-slate-200 bg-white">
     <div class="max-w-6xl mx-auto px-4 py-6 text-center text-sm text-slate-500">
       <span id="footer">Powered by BizPOS</span> · <a id="support" class="text-indigo-600 font-medium" href="https://wa.me/923224699887">Support 0322-4699887</a>
+      <div class="mt-2 flex justify-center gap-4 text-xs">
+        <a href="privacy.html" class="hover:text-indigo-600">Privacy</a>
+        <a href="terms.html" class="hover:text-indigo-600">Terms</a>
+        <a href="delete-account.html" class="hover:text-indigo-600">Delete account</a>
+      </div>
     </div>
   </footer>
 
@@ -113,6 +123,17 @@ const thumb = (item, cls = 'aspect-square') => item.thumb
   ? `<img src="${esc(item.thumb)}" alt="" class="${cls} w-full object-cover" loading="lazy">`
   : `<div class="${cls} w-full grid place-items-center bg-gradient-to-br ${tone(item.name)} text-white text-3xl font-extrabold">${esc(initials(item.name))}</div>`;
 
+// Distance in km between two points (haversine).
+const km = (a, b) => {
+  const r = (d) => d * Math.PI / 180;
+  const dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(h));
+};
+const kmText = (d) => d < 1 ? `${Math.round(d * 1000)} m` : `${d < 10 ? d.toFixed(1) : Math.round(d)} km`;
+const hasLoc = (s) => typeof s.lat === 'number' && typeof s.lng === 'number';
+const nationwide = (s) => s.deliveryArea === 'pakistan';
+
 const store = (key, val) => { try { if (val === undefined) return JSON.parse(localStorage.getItem(key) || 'null'); localStorage.setItem(key, JSON.stringify(val)); } catch { return null; } };
 
 let settings = {};
@@ -136,10 +157,40 @@ async function loadSettings() {
     document.head.appendChild(icon);
   }
   if (settings.footer) $('footer').textContent = settings.footer;
+  loadNotices();
   if (settings.phone) {
     $('support').href = `https://wa.me/${waNumber(settings.phone)}`;
     $('support').textContent = `Support ${settings.phone}`;
   }
+}
+
+// Announcements from the super admin (audience "all" or "shoppers").
+async function loadNotices() {
+  let list = [];
+  try {
+    const q = await getDocs(query(collection(db, 'announcements'), where('active', '==', true)));
+    const now = Date.now();
+    const hidden = store('hiddenNotices') || [];
+    list = q.docs.map((d) => ({ id: d.id, ...d.data() }))
+      .filter((a) => a.audience !== 'shops' && (a.startAt || 0) <= now && (!a.endAt || a.endAt > now) && !hidden.includes(a.id));
+  } catch { return; }
+  const tones = { info: 'bg-sky-50 border-sky-200 text-sky-900', update: 'bg-indigo-50 border-indigo-200 text-indigo-900',
+    offer: 'bg-emerald-50 border-emerald-200 text-emerald-900', warning: 'bg-amber-50 border-amber-200 text-amber-900' };
+  const icons = { info: '📢', update: '✨', offer: '🎁', warning: '⚠️' };
+  $('notices').innerHTML = list.map((a) => `
+    <div class="mt-4 flex items-start gap-3 p-4 rounded-2xl border ${tones[a.kind] || tones.info} fade-in">
+      <span class="text-xl">${icons[a.kind] || icons.info}</span>
+      <div class="flex-1 min-w-0">
+        <div class="font-bold">${esc(a.title)}</div>
+        ${a.message ? `<div class="text-sm mt-0.5 whitespace-pre-line">${esc(a.message)}</div>` : ''}
+        ${a.link ? `<a href="${esc(/^https?:/.test(a.link) ? a.link : 'https://' + a.link)}" target="_blank" rel="noopener" class="inline-block mt-1 text-sm font-semibold underline">Open</a>` : ''}
+      </div>
+      <button data-hide="${esc(a.id)}" class="w-8 h-8 rounded-lg hover:bg-black/5" aria-label="Hide">×</button>
+    </div>`).join('');
+  $('notices').querySelectorAll('[data-hide]').forEach((b) => b.onclick = () => {
+    store('hiddenNotices', [...(store('hiddenNotices') || []), b.dataset.hide]);
+    b.parentElement.remove();
+  });
 }
 
 function closedPage() {
@@ -164,8 +215,9 @@ function productCard(item, cur, { storeName = '', href = '', deal = null, add = 
   const price = deal ?? item.price;
   return `
     <div class="group bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition fade-in">
-      <a ${href ? `href="${href}"` : ''} class="block relative">
+      <a ${href ? `href="${href}"` : `href="#" data-view="${esc(item.id)}"`} class="block relative">
         ${thumb(item)}
+        ${(item.photos || 0) > 1 ? `<span class="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/60 text-white text-xs font-semibold">📷 ${item.photos}</span>` : ''}
         ${deal != null ? `<span class="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-rose-500 text-white text-xs font-bold">DEAL</span>` : ''}
         ${item.inStock === false ? `<span class="absolute inset-0 bg-white/70 grid place-items-center text-sm font-bold text-slate-600">Out of stock</span>` : ''}
       </a>
@@ -220,7 +272,10 @@ function openModal(title, html) {
   $('modalBody').innerHTML = html;
   $('modal').classList.remove('hidden');
 }
-function closeModal() { $('modal').classList.add('hidden'); }
+function closeModal() {
+  $('modal').classList.add('hidden');
+  if (shopId && /[?&]p=/.test(location.search)) history.replaceState(null, '', `?s=${encodeURIComponent(shopId)}`);
+}
 $('modalBg').onclick = closeModal;
 $('modalClose').onclick = closeModal;
 $('accountBtn').onclick = () => (user ? accountPage() : signInPage());
@@ -396,16 +451,39 @@ async function home() {
     const fDeals = deals.filter((f) => !q || match(f.name) || match(f.storeName));
     const fLatest = latest.filter((i) => !q || match(i.name) || match(i.store.name));
     const card = (f, deal) => productCard({ id: f.itemId, name: f.name, price: f.price, thumb: f.thumb }, f.currency,
-      { storeName: f.storeName, href: `?s=${encodeURIComponent(f.shopId)}`, deal: deal ? f.dealPrice : null });
+      { storeName: f.storeName, href: `?s=${encodeURIComponent(f.shopId)}&p=${encodeURIComponent(f.itemId)}`, deal: deal ? f.dealPrice : null });
+    // Nearby first when the shopper shared their location; shops that deliver
+    // all over Pakistan are listed for everyone.
+    const withDist = fStores.map((s) => ({ ...s, dist: here && hasLoc(s) ? km(here, s) : null }));
+    const near = here ? withDist.filter((s) => s.dist != null && s.dist <= Math.max(s.deliveryKm || 5, 3) && !nationwide(s)).sort((a, b) => a.dist - b.dist) : [];
+    const country = withDist.filter((s) => nationwide(s)).sort((a, b) => (a.dist ?? 1e9) - (b.dist ?? 1e9));
+    const others = withDist.filter((s) => !near.includes(s) && !country.includes(s))
+      .filter((s) => !city || String(s.city || '').toLowerCase() === city)
+      .sort((a, b) => (a.dist ?? 1e9) - (b.dist ?? 1e9));
+    const shopCard = (s) => `
+      <a href="?s=${encodeURIComponent(s.id)}" class="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-200 hover:shadow-lg hover:-translate-y-0.5 transition fade-in">
+        <span class="w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-br ${tone(s.name)} grid place-items-center text-white text-xl font-extrabold">${esc(initials(s.name))}</span>
+        <span class="min-w-0">
+          <span class="block font-bold truncate">${esc(s.name)}</span>
+          <span class="block text-sm text-slate-500 truncate">${esc([s.category, s.city].filter(Boolean).join(' · '))}</span>
+          <span class="block text-xs mt-0.5 font-semibold ${nationwide(s) ? 'text-emerald-600' : 'text-indigo-600'}">
+            ${nationwide(s) ? '🚚 Delivers all over Pakistan' : (s.dist != null ? `📍 ${kmText(s.dist)} away` : (s.deliveryKm ? `Delivers within ${s.deliveryKm} km` : ''))}
+          </span>
+        </span>
+        <span class="ml-auto text-indigo-600 font-semibold text-sm">Visit →</span>
+      </a>`;
+    const grid = (l) => `<div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">${l.map(shopCard).join('')}</div>`;
+    const cities = [...new Set(stores.map((s) => String(s.city || '').trim()).filter(Boolean))].sort();
     main.innerHTML = `
       <section class="mt-6 rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-600 text-white p-6 sm:p-10 relative overflow-hidden fade-in">
         <div class="absolute -right-10 -top-10 w-48 h-48 rounded-full bg-white/10"></div>
         <p class="text-sm font-semibold text-white/80">${esc(brand)} Marketplace</p>
         <h1 class="mt-1 text-3xl sm:text-4xl font-extrabold tracking-tight max-w-xl">Order from shops near you</h1>
         <p class="mt-3 text-white/85 max-w-lg">Groceries, clothes, mobiles and more. Place your order online and the shop calls you to confirm.</p>
-        <div class="mt-5 flex gap-3 text-sm">
-          <span class="px-3 py-1.5 rounded-full bg-white/15">${stores.length} shops</span>
-          <span class="px-3 py-1.5 rounded-full bg-white/15">No app needed</span>
+        <div class="mt-5 flex flex-wrap gap-3 text-sm">
+          <button id="nearBtn" class="px-4 py-2 rounded-full bg-white text-indigo-700 font-bold shadow">${here ? '📍 Showing shops near you' : '📍 Shops near me'}</button>
+          <span class="px-3 py-2 rounded-full bg-white/15">${stores.length} shops</span>
+          <span class="px-3 py-2 rounded-full bg-white/15">No app needed</span>
         </div>
       </section>
       ${fDeals.length ? `
@@ -425,27 +503,56 @@ async function home() {
             ${fLatest.slice(0, 20).map((i) => productCard(i, i.store.currency, { storeName: i.store.name, href: `?s=${encodeURIComponent(i.store.id)}` })).join('')}
           </div>
         </section>` : ''}
+      ${near.length ? `
+        <section class="mt-10">
+          <h2 class="text-xl font-extrabold">📍 Shops near you</h2>
+          <p class="text-sm text-slate-500">Groceries and daily needs from your area.</p>
+          ${grid(near)}
+        </section>` : ''}
+      ${country.length ? `
+        <section class="mt-10">
+          <h2 class="text-xl font-extrabold">🚚 Delivers all over Pakistan</h2>
+          ${grid(country)}
+        </section>` : ''}
       <section class="mt-10">
-        <h2 class="text-xl font-extrabold">Shops</h2>
-        ${fStores.length ? `
-          <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            ${fStores.map((s) => `
-              <a href="?s=${encodeURIComponent(s.id)}" class="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-200 hover:shadow-lg hover:-translate-y-0.5 transition fade-in">
-                <span class="w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-br ${tone(s.name)} grid place-items-center text-white text-xl font-extrabold">${esc(initials(s.name))}</span>
-                <span class="min-w-0">
-                  <span class="block font-bold truncate">${esc(s.name)}</span>
-                  <span class="block text-sm text-slate-500 truncate">${esc([s.category, s.city].filter(Boolean).join(' · '))}</span>
-                </span>
-                <span class="ml-auto text-indigo-600 font-semibold text-sm">Visit →</span>
-              </a>`).join('')}
-          </div>` : `<p class="mt-4 text-slate-500">${q ? 'Nothing matches your search.'
-            : setupError ? 'Shops could not be loaded. (Admin: publish the latest Firestore rules.)'
-            : 'Shops are joining soon.'}</p>`}
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <h2 class="text-xl font-extrabold">${near.length || country.length ? 'More shops' : 'Shops'}</h2>
+          ${cities.length > 1 ? `<select id="cityPick" class="h-10 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold">
+            <option value="">All cities</option>
+            ${cities.map((c) => `<option value="${esc(c.toLowerCase())}" ${c.toLowerCase() === city ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+          </select>` : ''}
+        </div>
+        ${others.length ? grid(others) : `<p class="mt-4 text-slate-500">${q || city ? 'Nothing matches your search.'
+          : near.length || country.length ? 'No other shops.'
+          : setupError ? 'Shops could not be loaded. (Admin: publish the latest Firestore rules.)'
+          : 'Shops are joining soon.'}</p>`}
       </section>`;
   };
-  render();
-  $('search').oninput = (e) => render(e.target.value.trim().toLowerCase());
+  let q = '';
+  const draw = () => {
+    render(q);
+    $('nearBtn').onclick = locate;
+    const pick = $('cityPick');
+    if (pick) pick.onchange = (e) => { city = e.target.value; store('city', city); draw(); };
+  };
+  const locate = () => {
+    if (!navigator.geolocation) return alertBox('Your browser cannot share location. Pick your city instead.');
+    $('nearBtn').textContent = 'Finding you…';
+    navigator.geolocation.getCurrentPosition((pos) => {
+      here = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      store('here', { ...here, at: Date.now() });
+      draw();
+    }, () => { $('nearBtn').textContent = '📍 Shops near me'; alertBox('Location is off. Allow location for this website, or pick your city.'); },
+    { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 });
+  };
+  draw();
+  $('search').oninput = (e) => { q = e.target.value.trim().toLowerCase(); draw(); };
 }
+
+// Shopper location (kept on this browser for a day) and city choice.
+let here = (() => { const h = store('here'); return h && Date.now() - (h.at || 0) < 86400000 ? h : null; })();
+let city = store('city') || '';
+const alertBox = (text) => openModal('Note', `<p class="text-slate-700">${esc(text)}</p>`);
 
 // ------------------------------------------------------------------ store
 
@@ -523,6 +630,7 @@ async function storePage() {
       </div>`;
     main.querySelectorAll('[data-add]').forEach((b) => b.onclick = () => { add(b.dataset.add); b.textContent = 'Added ✓'; setTimeout(() => (b.textContent = 'Add'), 900); });
     main.querySelectorAll('[data-cat]').forEach((b) => b.onclick = () => { cat = b.dataset.cat; render(); });
+    main.querySelectorAll('[data-view]').forEach((a) => a.onclick = (e) => { e.preventDefault(); productPage(a.dataset.view); });
     $('cartBarBtn').onclick = openCart;
     updateCartButton();
   };
@@ -530,6 +638,51 @@ async function storePage() {
   $('search').placeholder = `Search in ${shop.name}`;
   $('search').oninput = (e) => { q = e.target.value.trim().toLowerCase(); render(); };
   $('cartBtn').onclick = openCart;
+  const open = params.get('p');
+  if (open && items.some((i) => i.id === open)) productPage(open);
+}
+
+// Product details with all its photos.
+async function productPage(id) {
+  const it = items.find((i) => i.id === id);
+  if (!it) return;
+  history.replaceState(null, '', `?s=${encodeURIComponent(shopId)}&p=${encodeURIComponent(id)}`);
+  const deal = dealPrices[id] ?? null;
+  const body = (pics) => `
+    <div class="-mx-5 -mt-5 bg-slate-100">
+      <div id="gMain" class="aspect-square w-full">${pics.length ? `<img src="${esc(pics[0])}" alt="" class="w-full h-full object-contain">` : thumb(it, 'aspect-square')}</div>
+      ${pics.length > 1 ? `<div class="flex gap-2 p-3 overflow-x-auto no-scrollbar bg-white">
+        ${pics.map((u, i) => `<button data-pic="${i}" class="w-16 h-16 shrink-0 rounded-xl overflow-hidden border-2 ${i ? 'border-transparent' : 'border-indigo-500'}"><img src="${esc(u)}" alt="" class="w-full h-full object-cover"></button>`).join('')}
+      </div>` : ''}
+    </div>
+    <div class="mt-4">
+      ${it.category ? `<div class="text-xs font-semibold text-indigo-600 uppercase tracking-wide">${esc(it.category)}</div>` : ''}
+      <h3 class="text-xl font-extrabold mt-1">${esc(it.name)}</h3>
+      <div class="mt-2 flex items-baseline gap-2">
+        <span class="text-2xl font-extrabold text-indigo-600">${money(shop.currency, deal ?? it.price)}</span>
+        ${deal != null ? `<span class="text-slate-400 line-through">${money(shop.currency, it.price)}</span>` : ''}
+        ${it.unit ? `<span class="text-sm text-slate-500">/ ${esc(it.unit)}</span>` : ''}
+      </div>
+      ${it.description ? `<p class="mt-3 text-slate-700 whitespace-pre-line">${esc(it.description)}</p>` : ''}
+      <p class="mt-3 text-sm ${it.inStock === false ? 'text-rose-600' : 'text-emerald-600'} font-semibold">${it.inStock === false ? 'Out of stock' : 'In stock'}</p>
+      <button id="pAdd" ${it.inStock === false ? 'disabled' : ''} class="mt-4 ${btnCls} h-12 disabled:opacity-50">Add to cart</button>
+    </div>`;
+  openModal(shop.name, body([]));
+  const wire = (pics) => {
+    $('modalBody').querySelectorAll('[data-pic]').forEach((b) => b.onclick = () => {
+      $('gMain').innerHTML = `<img src="${esc(pics[+b.dataset.pic])}" alt="" class="w-full h-full object-contain">`;
+      $('modalBody').querySelectorAll('[data-pic]').forEach((x) => x.classList.toggle('border-indigo-500', x === b));
+    });
+    $('pAdd').onclick = () => { add(id); closeModal(); openCart(); };
+  };
+  wire([]);
+  if ((it.photos || 0) > 0) {
+    try {
+      const snap = await getDocs(collection(db, `storefronts/${shopId}/items/${id}/photos`));
+      const pics = snap.docs.map((d) => d.data()).sort((a, b) => (a.order || 0) - (b.order || 0)).map((d) => d.data).filter(Boolean);
+      if (pics.length && !$('modal').classList.contains('hidden')) { $('modalBody').innerHTML = body(pics); wire(pics); }
+    } catch (e) { console.error(e); }
+  }
 }
 
 function openCart() {

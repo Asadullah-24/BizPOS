@@ -110,6 +110,34 @@ class StoreService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Copies the latest shop details and plan expiry to the store card.
+  Future<void> refreshCard() async {
+    final id = _cloud.shopId;
+    if (id == null || !_cloud.signedIn) return;
+    final ref = _db.doc('storefronts/$id');
+    final snap = await ref.get();
+    if (!snap.exists) return;
+    await ref.set({..._card(id), 'published': snap.data()?['published'] == true}, SetOptions(merge: true));
+  }
+
+  /// Where the shop is and where it delivers, for "nearby shops" on the website.
+  /// [area] is 'near' (within [km]) or 'pakistan' (delivers all over Pakistan).
+  Future<void> setLocation({double? lat, double? lng, required String area, required int km}) async {
+    final id = _requireShop();
+    final ref = _db.doc('storefronts/$id');
+    final exists = (await ref.get()).exists;
+    await ref.set({
+      ..._card(id),
+      if (!exists) 'published': false,
+      if (!exists) 'adminHidden': false,
+      if (!exists) 'createdAt': FieldValue.serverTimestamp(),
+      if (lat != null) 'lat': double.parse(lat.toStringAsFixed(5)),
+      if (lng != null) 'lng': double.parse(lng.toStringAsFixed(5)),
+      'deliveryArea': area,
+      'deliveryKm': km,
+    }, SetOptions(merge: true));
+  }
+
   /// Shows [p] on the online store, within the plan's limit.
   Future<void> publish(Product p, {required int currentCount}) async {
     final id = _requireShop();
@@ -126,7 +154,67 @@ class StoreService extends ChangeNotifier {
 
   Future<void> unpublish(String productId) async {
     final id = _requireShop();
+    final photos = await _db.collection('storefronts/$id/items/$productId/photos').get();
+    for (final d in photos.docs) {
+      await d.reference.delete();
+    }
     await _db.doc('storefronts/$id/items/$productId').delete();
+  }
+
+  // ------------------------------------------------------------- photos
+
+  static const maxPhotos = 4;
+
+  Stream<List<Map<String, dynamic>>> photos(String productId) {
+    final id = _requireShop();
+    return _db
+        .collection('storefronts/$id/items/$productId/photos')
+        .snapshots()
+        .map((q) => q.docs.map((d) => {'id': d.id, ...d.data()}).toList()
+          ..sort((a, b) => ((a['order'] ?? 0) as num).compareTo((b['order'] ?? 0) as num)));
+  }
+
+  /// Adds photos to an online product: each is resized to 1080px and saved
+  /// as a small JPEG (about 100-200 KB). The first photo is also the thumbnail.
+  Future<int> addPhotos(String productId, List<Uint8List> images, {required int existing}) async {
+    final id = _requireShop();
+    var order = existing;
+    for (final bytes in images.take(maxPhotos - existing)) {
+      final big = await compute(_photo, bytes);
+      if (big == null) continue;
+      await _db.collection('storefronts/$id/items/$productId/photos').add({
+        'data': 'data:image/jpeg;base64,${base64Encode(big)}',
+        'order': order,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      if (order == 0) {
+        final small = await compute(_shrink, bytes);
+        if (small != null) {
+          await _db.doc('storefronts/$id/items/$productId').update({'thumb': 'data:image/jpeg;base64,${base64Encode(small)}'});
+        }
+      }
+      order++;
+    }
+    await _db.doc('storefronts/$id/items/$productId').update({'photos': order, 'updatedAt': FieldValue.serverTimestamp()});
+    return order - existing;
+  }
+
+  Future<void> deletePhoto(String productId, String photoId, int remaining) async {
+    final id = _requireShop();
+    await _db.doc('storefronts/$id/items/$productId/photos/$photoId').delete();
+    await _db.doc('storefronts/$id/items/$productId').update({'photos': remaining, 'updatedAt': FieldValue.serverTimestamp()});
+  }
+
+  Future<String> description(String productId) async {
+    final id = _requireShop();
+    final d = await _db.doc('storefronts/$id/items/$productId').get();
+    return (d.data()?['description'] ?? '') as String;
+  }
+
+  /// Text shown on the product page of the website.
+  Future<void> setDescription(String productId, String text) async {
+    final id = _requireShop();
+    await _db.doc('storefronts/$id/items/$productId').update({'description': text.trim(), 'updatedAt': FieldValue.serverTimestamp()});
   }
 
   /// Refreshes name, price, stock and photo of every product shown online,
@@ -158,7 +246,10 @@ class StoreService extends ChangeNotifier {
       final d = await ref.get();
       if (!d.exists) return;
       final p = await ProductService.byId(productId);
-      if (p != null) await ref.set(await _itemData(p), SetOptions(merge: true));
+      final hasPhotos = ((d.data()?['photos'] ?? 0) as num) > 0;
+      if (p != null) {
+        await ref.set(await _itemData(p, keepThumb: hasPhotos ? d.data()?['thumb'] as String? : null), SetOptions(merge: true));
+      }
     } catch (_) {}
   }
 
@@ -170,7 +261,7 @@ class StoreService extends ChangeNotifier {
       'unit': p.unit ?? '',
       'category': cat?['name'] ?? '',
       'inStock': !p.trackStock || p.stock > 0 || p.hasVariants,
-      'thumb': keepThumb ?? await _thumb(p.image) ?? '',
+      if (keepThumb != null || p.image != null) 'thumb': keepThumb ?? await _thumb(p.image) ?? '',
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
@@ -403,6 +494,24 @@ Uint8List? _logo(Uint8List bytes) {
   final square = img.copyCrop(decoded,
       x: (decoded.width - side) ~/ 2, y: (decoded.height - side) ~/ 2, width: side, height: side);
   return Uint8List.fromList(img.encodePng(img.copyResize(square, width: 192, height: 192)));
+}
+
+/// Product photo for the website: longest side 1080px, JPEG, kept under
+/// about 400 KB by lowering the quality if needed (runs in an isolate).
+Uint8List? _photo(Uint8List bytes) {
+  final decoded = img.decodeImage(bytes);
+  if (decoded == null) return null;
+  final oriented = img.bakeOrientation(decoded);
+  final resized = oriented.width >= oriented.height
+      ? img.copyResize(oriented, width: min(1080, oriented.width), interpolation: img.Interpolation.average)
+      : img.copyResize(oriented, height: min(1080, oriented.height), interpolation: img.Interpolation.average);
+  var quality = 78;
+  var out = img.encodeJpg(resized, quality: quality);
+  while (out.length > 400 * 1024 && quality > 40) {
+    quality -= 10;
+    out = img.encodeJpg(resized, quality: quality);
+  }
+  return Uint8List.fromList(out);
 }
 
 /// Resizes a photo to 320px and encodes it as JPEG (runs in an isolate).

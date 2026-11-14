@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Delete your account · BizPOS</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <meta name="theme-color" content="#4f46e5">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } };</script>
+  <style>.prose h2{font-weight:800;font-size:1.25rem;margin-top:2rem} .prose p,.prose li{color:#334155;line-height:1.7;margin-top:.5rem} .prose ul{list-style:disc;padding-left:1.25rem}</style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased">
+  <header class="bg-white border-b border-slate-200">
+    <div class="max-w-3xl mx-auto px-5 h-16 flex items-center justify-between">
+      <a href="./" class="font-extrabold text-lg">Biz<span class="text-indigo-600">POS</span></a>
+      <nav class="text-sm font-semibold text-slate-600 flex gap-4">
+        <a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="delete-account.html">Delete account</a>
+      </nav>
+    </div>
+  </header>
+  <main class="max-w-3xl mx-auto px-5 py-10">
+    <h1 class="text-3xl font-extrabold">Delete your BizPOS account</h1>
+    <p class="mt-3 text-slate-600">You can delete your account and its data at any time.</p>
+
+    <section class="mt-8 bg-white rounded-2xl border border-slate-200 p-6">
+      <h2 class="font-extrabold text-lg">Shop owners (BizPOS app)</h2>
+      <ol class="mt-3 list-decimal pl-5 space-y-1 text-slate-700">
+        <li>Open BizPOS and go to <b>More &gt; Account</b>.</li>
+        <li>Tap <b>Delete my account</b>, enter your password and type DELETE.</li>
+      </ol>
+      <p class="mt-3 text-sm text-slate-500">This deletes your sign-in, company record, online store and its products. Data on the phone is erased if you choose so. Payment records may be kept where the law requires.</p>
+    </section>
+
+    <section class="mt-6 bg-white rounded-2xl border border-slate-200 p-6">
+      <h2 class="font-extrabold text-lg">Shoppers (website account)</h2>
+      <p class="mt-2 text-slate-600">Sign in and delete your shopper account, coins and profile. Orders you placed stay with the shops for their records.</p>
+      <form id="f" class="mt-4 space-y-3">
+        <input name="email" type="email" required placeholder="Email" class="w-full h-11 rounded-xl border border-slate-300 px-4">
+        <input name="password" type="password" required placeholder="Password" class="w-full h-11 rounded-xl border border-slate-300 px-4">
+        <label class="flex gap-2 text-sm"><input type="checkbox" required> I understand this cannot be undone.</label>
+        <button class="w-full h-11 rounded-xl bg-rose-600 text-white font-bold">Delete my shopper account</button>
+        <p id="msg" class="text-sm"></p>
+      </form>
+    </section>
+
+    <section class="mt-6 bg-white rounded-2xl border border-slate-200 p-6">
+      <h2 class="font-extrabold text-lg">Can't sign in?</h2>
+      <p class="mt-2 text-slate-600">Send us your account email on WhatsApp <a class="text-indigo-600 font-medium" href="https://wa.me/923224699887?text=Please%20delete%20my%20BizPOS%20account">0322-4699887</a>. We confirm it is your account and delete it within 7 days.</p>
+    </section>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword, deleteUser } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js';
+import { getFirestore, doc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
+const app = initializeApp({ apiKey: 'AIzaSyBwC3mZE1eseWzjoUCkHV2e_Q3KAAYvvE8', authDomain: 'bizpos-7e092.firebaseapp.com', projectId: 'bizpos-7e092', appId: '1:63118621975:web:172defd7f1978470a84b52' });
+const auth = getAuth(app);
+const db = getFirestore(app);
+document.getElementById('f').onsubmit = async (e) => {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  const msg = document.getElementById('msg');
+  msg.className = 'text-sm text-slate-500';
+  msg.textContent = 'Deleting…';
+  try {
+    const c = await signInWithEmailAndPassword(auth, f.get('email'), f.get('password'));
+    await deleteDoc(doc(db, `shoppers/${c.user.uid}`)).catch(() => {});
+    await deleteUser(c.user);
+    msg.className = 'text-sm text-emerald-600';
+    msg.textContent = 'Your shopper account was deleted.';
+  } catch (err) {
+    msg.className = 'text-sm text-rose-600';
+    msg.textContent = err.code === 'auth/invalid-credential' ? 'Wrong email or password.' : 'Could not delete. Please contact us on WhatsApp.';
+  }
+};
+</script>
+  </main>
+  <footer class="border-t border-slate-200 bg-white"><div class="max-w-3xl mx-auto px-5 py-6 text-sm text-slate-500">
+    BizPOS · Support on WhatsApp <a class="text-indigo-600 font-medium" href="https://wa.me/923224699887">0322-4699887</a>
+  </div></footer>
+</body>
+</html>

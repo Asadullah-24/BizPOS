@@ -16,6 +16,7 @@ import '../core/ids.dart';
 import '../core/license.dart';
 import '../core/packages.dart';
 import 'profile_service.dart';
+import 'notice_service.dart';
 import 'store_service.dart';
 
 /// Turns Firebase Auth errors into short English messages.
@@ -100,6 +101,7 @@ class CloudService extends ChangeNotifier {
       await Firebase.initializeApp(options: FirebaseConfig.current);
       db.settings = const Settings(persistenceEnabled: true);
       ready = true;
+      NoticeService.instance.start();
       _settingsSub = db.doc('settings/app').snapshots().listen((s) {
         final d = s.data();
         if (d == null) return;
@@ -263,6 +265,38 @@ class CloudService extends ChangeNotifier {
   }
 
   Future<void> sendVerification() async => user?.sendEmailVerification();
+
+  /// Deletes the signed-in account: its online store, company record, user
+  /// record and sign-in. Data saved on the phone is handled by the caller.
+  Future<void> deleteAccount({String? password}) async {
+    final u = user;
+    if (u == null) throw StateError('Sign in first.');
+    await reauthenticate(password: password);
+    final id = shopId ?? (await db.doc('users/${u.uid}').get()).data()?['shopId'] as String?;
+    if (id != null) {
+      try {
+        final items = await db.collection('storefronts/$id/items').get();
+        for (final d in items.docs) {
+          await d.reference.delete();
+        }
+        final store = db.doc('storefronts/$id');
+        if ((await store.get()).exists) await store.delete();
+      } catch (_) {}
+      await _shopSub?.cancel();
+      _shopSub = null;
+      try {
+        await db.doc('shops/$id').delete();
+      } catch (_) {}
+    }
+    try {
+      await db.doc('users/${u.uid}').delete();
+    } catch (_) {}
+    shopId = null;
+    shop = null;
+    Access.instance.setCloud(CloudPlan.fromShop(null));
+    await u.delete();
+    notifyListeners();
+  }
 
   Future<void> signOut() async {
     try {

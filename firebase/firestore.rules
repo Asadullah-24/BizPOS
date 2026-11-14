@@ -55,7 +55,41 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['email', 'name', 'shopId', 'createdAt', 'updatedAt']);
       allow update: if isAdmin() || (signedIn() && request.auth.uid == uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'shopId', 'updatedAt']));
-      allow delete: if isAdmin();
+      // Account deletion by the user.
+      allow delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
+    }
+
+    // A free (or expired) shop activates a super admin offer once: the plan
+    // fields must be exactly the offer's package, for the offer's days only,
+    // and offerClaims/{shopId}_{offerId} is written in the same batch.
+    function claimsOffer(shopId) {
+      let offerId = request.resource.data.get('offer', '');
+      let offer = get(/databases/$(database)/documents/offers/$(offerId)).data;
+      let pkg = get(/databases/$(database)/documents/packages/$(offer.packageId)).data;
+      let now = request.time.toMillis();
+      return signedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && resource.data.status != 'blocked'
+        && (resource.data.get('plan', 'free') == 'free'
+            || (resource.data.get('expiresAt', 0) != 0 && resource.data.get('expiresAt', 0) < now))
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['plan', 'planName', 'features', 'adFree', 'maxProducts', 'onlineProducts', 'expiresAt', 'offer', 'updatedAt'])
+        && offer.active == true
+        && offer.startAt <= now
+        && (offer.endAt == 0 || offer.endAt > now)
+        && offer.days is int && offer.days > 0 && offer.days <= 60
+        && resource.data.get('stats', {}).get('products', 0) >= offer.get('minProducts', 0)
+        && request.resource.data.plan == offer.packageId
+        && request.resource.data.planName == pkg.name
+        && request.resource.data.features == pkg.features
+        && request.resource.data.adFree == pkg.get('adFree', true)
+        && request.resource.data.maxProducts == pkg.get('maxProducts', 0)
+        && request.resource.data.onlineProducts == pkg.get('onlineProducts', 3)
+        && request.resource.data.expiresAt is int
+        && request.resource.data.expiresAt > now
+        && request.resource.data.expiresAt <= now + offer.days * 86400000 + 600000
+        && !exists(/databases/$(database)/documents/offerClaims/$(shopId + '_' + offerId))
+        && existsAfter(/databases/$(database)/documents/offerClaims/$(shopId + '_' + offerId));
     }
 
     match /shops/{shopId} {
@@ -85,9 +119,10 @@ service cloud.firestore {
         && resource.data.ownerUid == request.auth.uid
         && resource.data.status != 'blocked'
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['name', 'category', 'phone', 'city', 'currency', 'devices', 'stats', 'updatedAt']));
+             .hasOnly(['name', 'category', 'phone', 'city', 'currency', 'devices', 'stats', 'updatedAt']))
+        || claimsOffer(shopId);
 
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || (signedIn() && resource.data.ownerUid == request.auth.uid);
     }
 
     // ----------------------------------------------------------- online store
@@ -118,12 +153,21 @@ service cloud.firestore {
         || (resource.data.published == true && resource.data.adminHidden == false);
       allow create: if isAdmin() || (ownerStoreWrite(shopId) && request.resource.data.adminHidden == false);
       allow update: if isAdmin() || (ownerStoreWrite(shopId) && request.resource.data.adminHidden == resource.data.adminHidden);
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || (signedIn() && shopData(shopId).ownerUid == request.auth.uid);
 
       // Products shown online.
       match /items/{itemId} {
         allow read: if true;
         allow write: if isAdmin() || (signedIn() && shopData(shopId).ownerUid == request.auth.uid);
+
+        // Product photos (compressed JPEG data, up to 4 per product).
+        match /photos/{photoId} {
+          allow read: if true;
+          allow write: if isAdmin() || (signedIn() && shopData(shopId).ownerUid == request.auth.uid
+            && request.resource.data.data is string
+            && request.resource.data.data.size() < 600000);
+          allow delete: if isAdmin() || (signedIn() && shopData(shopId).ownerUid == request.auth.uid);
+        }
       }
     }
 
@@ -204,7 +248,7 @@ service cloud.firestore {
             && getAfter(/databases/$(database)/documents/coinAwards/$(request.resource.data.lastAward)).data.uid == uid
             && request.resource.data.coins == resource.data.coins
                  + getAfter(/databases/$(database)/documents/coinAwards/$(request.resource.data.lastAward)).data.coins);
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || (signedIn() && request.auth.uid == uid);
     }
 
     // One coin award per delivered order, given by the shop that got the order.
@@ -219,6 +263,31 @@ service cloud.firestore {
         && request.resource.data.coins > 0
         && request.resource.data.coins <= get(/databases/$(database)/documents/orders/$(orderId)).data.total / 100
              * appSettings().get('coinsPerHundred', 0);
+      allow update, delete: if isAdmin();
+    }
+
+    // Announcements from the super admin to shop apps and the website.
+    match /announcements/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Free plan offers set by the super admin.
+    match /offers/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // One claim per shop per offer, written together with the shop's new plan.
+    match /offerClaims/{claimId} {
+      allow get: if signedIn() && (resource == null || resource.data.ownerUid == request.auth.uid || isAdmin());
+      allow list: if isAdmin();
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['shopId', 'offerId', 'ownerUid', 'createdAt'])
+        && claimId == request.resource.data.shopId + '_' + request.resource.data.offerId
+        && request.resource.data.ownerUid == request.auth.uid
+        && get(/databases/$(database)/documents/shops/$(request.resource.data.shopId)).data.ownerUid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/shops/$(request.resource.data.shopId)).data.get('offer', '') == request.resource.data.offerId;
       allow update, delete: if isAdmin();
     }
 

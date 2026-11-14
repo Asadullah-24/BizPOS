@@ -373,7 +373,15 @@ class ProductThumb extends StatelessWidget {
         if (f == null) return fallback;
         return ClipRRect(
           borderRadius: BorderRadius.circular(radius),
-          child: Image.file(f, width: size, height: size, fit: BoxFit.cover, cacheWidth: (size * 3).round()),
+          child: Image.file(
+            f,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.medium,
+            // Small list thumbnails decode smaller to save memory; big ones decode in full.
+            cacheWidth: size > 60 ? null : (size * 4).round(),
+          ),
         );
       },
     );

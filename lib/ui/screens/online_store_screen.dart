@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -568,7 +569,8 @@ class _Pill extends StatelessWidget {
 }
 
 
-/// Photos and description of one product on the website.
+/// Photos and description of one product on the website. Photos are kept
+/// with the product on this phone and copied to the website.
 class ProductPhotosScreen extends StatefulWidget {
   const ProductPhotosScreen({super.key, required this.product});
   final Product product;
@@ -579,11 +581,15 @@ class ProductPhotosScreen extends StatefulWidget {
 
 class _ProductPhotosScreenState extends State<ProductPhotosScreen> {
   bool _busy = false;
+  late Product _p = widget.product;
   final _desc = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    ProductService.byId(widget.product.id).then((p) {
+      if (mounted && p != null) setState(() => _p = p);
+    });
     StoreService.instance.description(widget.product.id).then((t) {
       if (mounted && _desc.text.isEmpty) _desc.text = t;
     }).catchError((_) {});
@@ -595,115 +601,124 @@ class _ProductPhotosScreenState extends State<ProductPhotosScreen> {
     super.dispose();
   }
 
-  Future<void> _add(int existing, ImageSource source) async {
-    final left = StoreService.maxPhotos - existing;
-    if (left <= 0) return;
-    final picker = ImagePicker();
-    final files = source == ImageSource.camera
-        ? [if (await picker.pickImage(source: ImageSource.camera, maxWidth: 2400) case final x?) x]
-        : await picker.pickMultiImage(maxWidth: 2400, limit: left);
-    if (files.isEmpty || !mounted) return;
+  Future<void> _save(List<String> photos) async {
     setState(() => _busy = true);
     await guard(context, () async {
-      final bytes = [for (final f in files.take(left)) await f.readAsBytes()];
-      final n = await StoreService.instance.addPhotos(widget.product.id, bytes, existing: existing);
-      if (mounted) showSnack(context, '$n ${tr('photos added')}');
+      _p.image = photos.isEmpty ? null : photos.first;
+      _p.moreImages = photos.length > 1 ? photos.sublist(1) : [];
+      await ProductService.save(_p, isNew: false);
+      await StoreService.instance.syncPhotos(_p);
     });
     if (mounted) setState(() => _busy = false);
+  }
+
+  Future<void> _add(ImageSource source) async {
+    final photos = _p.allImages;
+    final left = StoreService.maxPhotos - photos.length;
+    if (left <= 0) return;
+    final picker = ImagePicker();
+    final files = source == ImageSource.camera || left == 1
+        ? [if (await picker.pickImage(source: source, maxWidth: 1600, maxHeight: 1600, imageQuality: 90) case final x?) x]
+        : await picker.pickMultiImage(maxWidth: 1600, maxHeight: 1600, imageQuality: 90, limit: left);
+    if (files.isEmpty || !mounted) return;
+    final names = <String>[for (final x in files.take(left)) await ImageStore.save(File(x.path))];
+    await _save([...photos, ...names]);
+    if (mounted) showSnack(context, '${names.length} ${tr('photos added')}');
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final photos = _p.allImages;
     return Scaffold(
-      appBar: AppBar(title: Text(widget.product.displayName)),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: StoreService.instance.photos(widget.product.id),
-        builder: (context, snap) {
-          final photos = snap.data ?? const [];
-          return ListView(padding: const EdgeInsets.all(16), children: [
-            Text(tr('Photos on your online store'), style: theme.textTheme.titleMedium),
-            const SizedBox(height: 4),
-            Text(tr('Up to 4 photos. They are made smaller automatically and stay clear.'),
-                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-            const SizedBox(height: 12),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              children: [
-                for (var i = 0; i < photos.length; i++)
-                  Stack(fit: StackFit.expand, children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.memory(UriData.parse('${photos[i]['data']}').contentAsBytes(), fit: BoxFit.cover),
-                    ),
-                    if (i == 0)
-                      Positioned(
-                        left: 8,
-                        top: 8,
-                        child: _Pill(text: tr('Main'), color: Tw.emerald400),
-                      ),
+      appBar: AppBar(title: Text(_p.displayName)),
+      body: ListView(padding: const EdgeInsets.all(16), children: [
+        Text(tr('Photos on your online store'), style: theme.textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text(tr('Up to 4 photos. Pick several at once from the gallery. They stay sharp on the website.'),
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        const SizedBox(height: 12),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          children: [
+            for (var i = 0; i < photos.length; i++)
+              LayoutBuilder(
+                builder: (context, c) => Stack(fit: StackFit.expand, children: [
+                  ProductThumb(image: photos[i], name: _p.name, size: c.maxWidth),
+                  if (i == 0)
+                    Positioned(left: 8, top: 8, child: _Pill(text: tr('Main'), color: Tw.emerald400))
+                  else
                     Positioned(
-                      right: 6,
-                      top: 6,
+                      left: 4,
+                      bottom: 4,
                       child: IconButton.filled(
+                        tooltip: tr('Make main photo'),
                         style: IconButton.styleFrom(backgroundColor: Colors.black54),
-                        icon: const Icon(Icons.delete_rounded, color: Colors.white, size: 20),
-                        onPressed: () => guard(context,
-                            () => StoreService.instance.deletePhoto(widget.product.id, photos[i]['id'] as String, photos.length - 1)),
+                        icon: const Icon(Icons.star_rounded, color: Colors.white, size: 20),
+                        onPressed: _busy ? null : () => _save([photos[i], ...photos.where((e) => e != photos[i])]),
                       ),
                     ),
-                  ]),
-                if (photos.length < StoreService.maxPhotos)
-                  Material(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(16),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: _busy ? null : () => _add(photos.length, ImageSource.gallery),
-                      child: Center(
-                        child: _busy
-                            ? const CircularProgressIndicator()
-                            : Column(mainAxisSize: MainAxisSize.min, children: [
-                                const Icon(Icons.add_photo_alternate_rounded, size: 36),
-                                const SizedBox(height: 6),
-                                Text(tr('Add from gallery')),
-                              ]),
-                      ),
+                  Positioned(
+                    right: 4,
+                    top: 4,
+                    child: IconButton.filled(
+                      tooltip: tr('Remove photo'),
+                      style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                      icon: const Icon(Icons.delete_rounded, color: Colors.white, size: 20),
+                      onPressed: _busy ? null : () => _save([...photos]..removeAt(i)),
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (photos.length < StoreService.maxPhotos)
-              OutlinedButton.icon(
-                onPressed: _busy ? null : () => _add(photos.length, ImageSource.camera),
-                icon: const Icon(Icons.photo_camera_rounded),
-                label: Text(tr('Take a photo')),
+                ]),
               ),
-            const SizedBox(height: 20),
-            Text(tr('Description'), style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _desc,
-              maxLines: 4,
-              maxLength: 500,
-              decoration: InputDecoration(hintText: tr('Size, colour, brand, warranty, delivery time...')),
-            ),
-            FilledButton(
-              onPressed: () => guard(context, () => StoreService.instance.setDescription(widget.product.id, _desc.text), success: 'Saved'),
-              child: Text(tr('Save description')),
-            ),
-          ]);
-        },
-      ),
+            if (photos.length < StoreService.maxPhotos)
+              Material(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(16),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: _busy ? null : () => _add(ImageSource.gallery),
+                  child: Center(
+                    child: _busy
+                        ? const CircularProgressIndicator()
+                        : Column(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.add_photo_alternate_rounded, size: 36),
+                            const SizedBox(height: 6),
+                            Text(tr('Add from gallery')),
+                            Text('${StoreService.maxPhotos - photos.length} ${tr('more')}', style: theme.textTheme.bodySmall),
+                          ]),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (photos.length < StoreService.maxPhotos)
+          OutlinedButton.icon(
+            onPressed: _busy ? null : () => _add(ImageSource.camera),
+            icon: const Icon(Icons.photo_camera_rounded),
+            label: Text(tr('Take a photo')),
+          ),
+        const SizedBox(height: 20),
+        Text(tr('Description'), style: theme.textTheme.titleMedium),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _desc,
+          maxLines: 4,
+          maxLength: 500,
+          decoration: InputDecoration(hintText: tr('Size, colour, brand, warranty, delivery time...')),
+        ),
+        FilledButton(
+          onPressed: () => guard(context, () => StoreService.instance.setDescription(_p.id, _desc.text), success: 'Saved'),
+          child: Text(tr('Save description')),
+        ),
+      ]),
     );
   }
 }
-
 
 /// Store location and delivery area, used for "shops near you" on the website.
 class _LocationCard extends StatefulWidget {

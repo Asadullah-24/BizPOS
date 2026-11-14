@@ -222,7 +222,8 @@ class WebImportService {
       final id = r['id'] as String;
       try {
         final a = jsonDecode('${r['attrs'] ?? '{}'}');
-        if (a is Map && a['web_id'] != null) bySource['${a['web_id']}'] = id;
+        final w = a is Map ? (a['_web_id'] ?? a['web_id']) : null;
+        if (w != null) bySource['$w'] = id;
       } catch (_) {}
       if ('${r['sku'] ?? ''}'.isNotEmpty) bySku['${r['sku']}'.toLowerCase()] = id;
       byName['${r['name']}'.toLowerCase()] = id;
@@ -251,12 +252,13 @@ class WebImportService {
           if (old == null) continue;
           prod = old;
           if (updatePrices) prod.salePrice = w.price;
-          prod.attrs['web_id'] = w.sourceId;
+          prod.attrs.remove('web_id');
+          prod.attrs['_web_id'] = w.sourceId;
           if (!w.inStock && prod.trackStock == false) {
             prod.trackStock = true;
           }
           prod.categoryId ??= categoryId;
-          if (prod.image == null && w.images.isNotEmpty) prod.image = await _saveImage(w.images.first);
+          if (prod.allImages.isEmpty && w.images.isNotEmpty) await _savePhotos(prod, w.images);
           await ProductService.save(prod, isNew: false);
           res.updated++;
         } else {
@@ -269,9 +271,9 @@ class WebImportService {
             // Stock counts are not on the website: in-stock items are sold without
             // counting until the shop adds stock; out-of-stock items show as such.
             trackStock: !w.inStock,
-            attrs: {'web_id': w.sourceId},
+            attrs: {'_web_id': w.sourceId},
           );
-          if (w.images.isNotEmpty) prod.image = await _saveImage(w.images.first);
+          if (w.images.isNotEmpty) await _savePhotos(prod, w.images);
           try {
             await ProductService.save(prod, isNew: true);
           } on ProductLimitError {
@@ -298,15 +300,7 @@ class WebImportService {
               if (w.description.isNotEmpty) 'description': w.description,
               'oldPrice': w.regularPrice ?? FieldValue.delete(),
             });
-            final have = ((await itemRef.get()).data()?['photos'] ?? 0) as num;
-            if (have == 0 && w.images.isNotEmpty) {
-              final pics = <Uint8List>[];
-              for (final u in w.images.take(StoreService.maxPhotos)) {
-                final b = await _download(u);
-                if (b != null) pics.add(b);
-              }
-              if (pics.isNotEmpty) await store.addPhotos(prod.id, pics, existing: 0);
-            }
+            await store.syncPhotos(prod);
             res.online++;
           }
         } else if (existingId != null) {
@@ -321,25 +315,32 @@ class WebImportService {
     return res;
   }
 
-  /// Saves the main photo for the product list (600px JPEG).
-  static Future<String?> _saveImage(String url) async {
-    final bytes = await _download(url);
-    if (bytes == null) return null;
-    final jpg = await compute(_small, bytes);
-    if (jpg == null) return null;
-    final dir = await ImageStore.dir();
-    final name = '${newId()}.jpg';
-    await File(p.join(dir.path, name)).writeAsBytes(jpg);
-    return name;
+  /// Saves up to 4 website photos with the product on this phone (1600px JPEG).
+  static Future<void> _savePhotos(Product prod, List<String> urls) async {
+    final names = <String>[];
+    for (final url in urls.take(StoreService.maxPhotos)) {
+      final bytes = await _download(url);
+      if (bytes == null) continue;
+      final jpg = await compute(_local, bytes);
+      if (jpg == null) continue;
+      final dir = await ImageStore.dir();
+      final name = '${newId()}.jpg';
+      await File(p.join(dir.path, name)).writeAsBytes(jpg);
+      names.add(name);
+    }
+    if (names.isEmpty) return;
+    prod.image = names.first;
+    prod.moreImages = names.sublist(1);
   }
 }
 
-Uint8List? _small(Uint8List bytes) {
+Uint8List? _local(Uint8List bytes) {
   final d = img.decodeImage(bytes);
   if (d == null) return null;
   final o = img.bakeOrientation(d);
+  if (o.width <= 1600 && o.height <= 1600) return Uint8List.fromList(img.encodeJpg(o, quality: 90));
   final r = o.width >= o.height
-      ? img.copyResize(o, width: min(600, o.width), interpolation: img.Interpolation.average)
-      : img.copyResize(o, height: min(600, o.height), interpolation: img.Interpolation.average);
-  return Uint8List.fromList(img.encodeJpg(r, quality: 80));
+      ? img.copyResize(o, width: 1600, interpolation: img.Interpolation.average)
+      : img.copyResize(o, height: 1600, interpolation: img.Interpolation.average);
+  return Uint8List.fromList(img.encodeJpg(r, quality: 90));
 }

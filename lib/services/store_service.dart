@@ -147,6 +147,7 @@ class StoreService extends ChangeNotifier {
       throw StateError('Your plan shows $allowance products online. Ask BizPOS support for more.');
     }
     await _db.doc('storefronts/$id/items/${p.id}').set(await _itemData(p));
+    await syncPhotos(p, force: true);
     // Showing a product means the shop wants to be online: turn the store on.
     final card = await _db.doc('storefronts/$id').get();
     if (card.data()?['published'] != true) await setPublished(true);
@@ -199,6 +200,37 @@ class StoreService extends ChangeNotifier {
     return order - existing;
   }
 
+  /// Makes the online photos match the product's photos on this phone
+  /// (main photo first). Skips the upload when nothing changed.
+  Future<void> syncPhotos(Product p, {bool force = false}) async {
+    final id = _cloud.shopId;
+    if (id == null || !_cloud.signedIn) return;
+    final ref = _db.doc('storefronts/$id/items/${p.id}');
+    final snap = await ref.get();
+    if (!snap.exists) return;
+    final local = p.allImages.take(maxPhotos).toList();
+    final sig = local.join('|');
+    final data = snap.data() ?? {};
+    if (!force && data['photosSig'] == sig) return;
+    // Photos added online before photos were kept on the phone stay until replaced.
+    if (local.isEmpty && data['photosSig'] == null && ((data['photos'] ?? 0) as num) > 0) return;
+    final bytes = <Uint8List>[];
+    for (final name in local) {
+      final f = await ImageStore.file(name);
+      if (f != null) bytes.add(await f.readAsBytes());
+    }
+    final old = await _db.collection('storefronts/$id/items/${p.id}/photos').get();
+    for (final d in old.docs) {
+      await d.reference.delete();
+    }
+    if (bytes.isEmpty) {
+      await ref.update({'photos': 0, 'thumb': '', 'photosSig': sig, 'updatedAt': FieldValue.serverTimestamp()});
+      return;
+    }
+    await addPhotos(p.id, bytes, existing: 0);
+    await ref.update({'photosSig': sig});
+  }
+
   Future<void> deletePhoto(String productId, String photoId, int remaining) async {
     final id = _requireShop();
     await _db.doc('storefronts/$id/items/$productId/photos/$photoId').delete();
@@ -249,6 +281,7 @@ class StoreService extends ChangeNotifier {
       final hasPhotos = ((d.data()?['photos'] ?? 0) as num) > 0;
       if (p != null) {
         await ref.set(await _itemData(p, keepThumb: hasPhotos ? (d.data()?['thumb'] as String?) : null), SetOptions(merge: true));
+        await syncPhotos(p);
       }
     } catch (_) {}
   }
@@ -505,10 +538,10 @@ Uint8List? _photo(Uint8List bytes) {
   final resized = oriented.width >= oriented.height
       ? img.copyResize(oriented, width: min(1080, oriented.width), interpolation: img.Interpolation.average)
       : img.copyResize(oriented, height: min(1080, oriented.height), interpolation: img.Interpolation.average);
-  var quality = 78;
+  var quality = 86;
   var out = img.encodeJpg(resized, quality: quality);
-  while (out.length > 400 * 1024 && quality > 40) {
-    quality -= 10;
+  while (out.length > 420 * 1024 && quality > 50) {
+    quality -= 8;
     out = img.encodeJpg(resized, quality: quality);
   }
   return Uint8List.fromList(out);
@@ -518,10 +551,12 @@ Uint8List? _photo(Uint8List bytes) {
 Uint8List? _shrink(Uint8List bytes) {
   final decoded = img.decodeImage(bytes);
   if (decoded == null) return null;
-  final resized = decoded.width > decoded.height
-      ? img.copyResize(decoded, width: min(320, decoded.width))
-      : img.copyResize(decoded, height: min(320, decoded.height));
-  return Uint8List.fromList(img.encodeJpg(resized, quality: 70));
+  final o = img.bakeOrientation(decoded);
+  // 600px with smooth (area-average) scaling stays sharp on phone screens.
+  final resized = o.width > o.height
+      ? img.copyResize(o, width: min(600, o.width), interpolation: img.Interpolation.average)
+      : img.copyResize(o, height: min(600, o.height), interpolation: img.Interpolation.average);
+  return Uint8List.fromList(img.encodeJpg(resized, quality: 84));
 }
 
 extension<T> on List<T> {

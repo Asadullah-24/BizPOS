@@ -111,7 +111,15 @@ class Product {
   bool active;
   double stock;
 
-  /// Name shown on receipts and in the cart, including the variant.
+  /// Extra photos after the main [image] (file names), kept in a hidden attribute.
+  /// Attributes whose key starts with "_" are internal and not shown in the form.
+  List<String> get moreImages => (attrs['_more_images'] ?? '').split('|').where((e) => e.isNotEmpty).toList();
+  set moreImages(List<String> v) => v.isEmpty ? attrs.remove('_more_images') : attrs['_more_images'] = v.join('|');
+
+  /// Main photo first, then the extra ones.
+  List<String> get allImages => [if (image != null && image!.isNotEmpty) image!, ...moreImages];
+
+    /// Name shown on receipts and in the cart, including the variant.
   String get displayName =>
       (variantName == null || variantName!.isEmpty) ? name : '$name ($variantName)';
 

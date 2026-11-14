@@ -55,6 +55,8 @@ class _ProductFormState extends State<ProductForm> {
   final Map<String, TextEditingController> _attrs = {};
   String? _categoryId;
   String? _image;
+  List<String> _more = [];
+  final Map<String, String> _hidden = {};
   bool _track = true;
   bool _active = true;
   bool _hasVariants = false;
@@ -89,10 +91,14 @@ class _ProductFormState extends State<ProductForm> {
         _unit.text = p.unit ?? '';
         _categoryId = p.categoryId;
         _image = p.image;
+        _more = p.moreImages;
         _track = p.trackStock;
         _active = p.active;
         _hasVariants = p.hasVariants;
-        for (final f in {...fields, ...p.attrs.keys}) {
+        for (final e in p.attrs.entries) {
+          if (e.key.startsWith('_')) _hidden[e.key] = e.value;
+        }
+        for (final f in {...fields, ...p.attrs.keys.where((k) => !k.startsWith('_'))}) {
           _attrs[f] = TextEditingController(text: p.attrs[f] ?? '');
         }
         if (p.hasVariants) {
@@ -121,30 +127,110 @@ class _ProductFormState extends State<ProductForm> {
     if (mounted) setState(() => _loading = false);
   }
 
-  Future<void> _pickImage() async {
+  static const _maxPhotos = 4;
+  List<String> get _photos => [if (_image != null) _image!, ..._more];
+
+  void _setPhotos(List<String> l) {
+    _image = l.isEmpty ? null : l.first;
+    _more = l.length > 1 ? l.sublist(1) : [];
+  }
+
+  /// Adds photos from the camera or gallery (several at once from the gallery).
+  Future<void> _addPhotos() async {
+    final left = _maxPhotos - _photos.length;
+    if (left <= 0) return showSnack(context, tr('Up to 4 photos per product.'));
     final src = await showModalBottomSheet<ImageSource>(
       context: context,
       builder: (ctx) => SafeArea(
         child: Wrap(children: [
           ListTile(leading: const Icon(Icons.photo_camera), title: Text(tr('Camera')), onTap: () => Navigator.pop(ctx, ImageSource.camera)),
-          ListTile(leading: const Icon(Icons.photo_library), title: Text(tr('Gallery')), onTap: () => Navigator.pop(ctx, ImageSource.gallery)),
-          if (_image != null)
-            ListTile(
-              leading: const Icon(Icons.delete_outline),
-              title: Text(tr('Remove photo')),
-              onTap: () {
-                Navigator.pop(ctx);
-                setState(() => _image = null);
-              },
-            ),
+          ListTile(
+            leading: const Icon(Icons.photo_library),
+            title: Text(tr('Gallery')),
+            subtitle: Text('${tr('Pick up to')} $left'),
+            onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+          ),
         ]),
       ),
     );
     if (src == null) return;
-    final x = await ImagePicker().pickImage(source: src, maxWidth: 800, maxHeight: 800, imageQuality: 75);
-    if (x == null) return;
-    final name = await ImageStore.save(File(x.path));
-    setState(() => _image = name);
+    final picker = ImagePicker();
+    // High resolution and quality: the app makes its own smaller copies for the website.
+    final files = src == ImageSource.camera
+        ? [if (await picker.pickImage(source: src, maxWidth: 1600, maxHeight: 1600, imageQuality: 90) case final x?) x]
+        : left == 1
+            ? [if (await picker.pickImage(source: src, maxWidth: 1600, maxHeight: 1600, imageQuality: 90) case final x?) x]
+            : await picker.pickMultiImage(maxWidth: 1600, maxHeight: 1600, imageQuality: 90, limit: left);
+    if (files.isEmpty) return;
+    final names = <String>[for (final x in files.take(left)) await ImageStore.save(File(x.path))];
+    if (mounted) setState(() => _setPhotos([..._photos, ...names]));
+  }
+
+  Future<void> _photoMenu(int i) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(children: [
+          if (i > 0)
+            ListTile(leading: const Icon(Icons.star_rounded), title: Text(tr('Make main photo')), onTap: () => Navigator.pop(ctx, 'main')),
+          ListTile(leading: const Icon(Icons.delete_outline), title: Text(tr('Remove photo')), onTap: () => Navigator.pop(ctx, 'remove')),
+        ]),
+      ),
+    );
+    if (action == null) return;
+    final l = [..._photos];
+    final name = l.removeAt(i);
+    if (action == 'main') l.insert(0, name);
+    setState(() => _setPhotos(l));
+  }
+
+  Widget _photoStrip() {
+    final photos = _photos;
+    Widget tile(int i) => InkWell(
+          onTap: () => _photoMenu(i),
+          borderRadius: BorderRadius.circular(14),
+          child: Stack(children: [
+            ProductThumb(image: photos[i], name: _name.text, size: i == 0 ? 110 : 72),
+            if (i == 0 && photos.length > 1)
+              Positioned(
+                left: 6,
+                top: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(6)),
+                  child: Text(tr('Main'), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                ),
+              ),
+          ]),
+        );
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.end,
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        if (photos.isEmpty)
+          InkWell(
+            onTap: _addPhotos,
+            borderRadius: BorderRadius.circular(12),
+            child: Stack(children: [
+              ProductThumb(image: null, name: _name.text, size: 110),
+              const Positioned(right: 4, bottom: 4, child: CircleAvatar(radius: 16, child: Icon(Icons.photo_camera, size: 18))),
+            ]),
+          ),
+        for (var i = 0; i < photos.length; i++) tile(i),
+        if (photos.isNotEmpty && photos.length < _maxPhotos)
+          SizedBox(
+            width: 72,
+            height: 72,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+              onPressed: _addPhotos,
+              child: const Icon(Icons.add_photo_alternate_rounded),
+            ),
+          ),
+      ],
+    );
   }
 
   Future<void> _scanInto(TextEditingController c) async {
@@ -194,8 +280,10 @@ class _ProductFormState extends State<ProductForm> {
       lowStock: Fmt.parse(_low.text),
       image: _image,
       attrs: {
+        ..._hidden..remove('_more_images'),
         for (final e in _attrs.entries)
           if (e.value.text.trim().isNotEmpty) e.key: e.value.text.trim(),
+        if (_more.isNotEmpty) '_more_images': _more.join('|'),
       },
       hasVariants: _hasVariants,
       active: _active,
@@ -264,16 +352,16 @@ class _ProductFormState extends State<ProductForm> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 720),
             child: ListView(padding: const EdgeInsets.all(16), children: [
-              Center(
-                child: InkWell(
-                  onTap: _pickImage,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Stack(children: [
-                    ProductThumb(image: _image, name: _name.text, size: 110),
-                    const Positioned(right: 4, bottom: 4, child: CircleAvatar(radius: 16, child: Icon(Icons.photo_camera, size: 18))),
-                  ]),
+              Center(child: _photoStrip()),
+              if (_photos.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    '${_photos.length}/$_maxPhotos ${tr('photos')} · ${tr('tap a photo to make it main or remove it')}',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 ),
-              ),
               gap,
               TextField(controller: _name, decoration: InputDecoration(labelText: tr('Product name')), onChanged: (_) => setState(() {})),
               gap,

@@ -793,4 +793,10 @@ const Map<String, String> _ur = {
   'Your online product limit was reached. Ask BizPOS support for more.': 'آن لائن پروڈکٹ حد پوری ہو گئی۔ مزید کے لیے BizPOS سپورٹ سے رابطہ کریں۔',
   'Add stock and cost prices in Products when you are ready.': 'جب تیار ہوں تو پروڈکٹس میں اسٹاک اور خرید قیمت ڈال دیں۔',
   'photos': 'تصاویر',
+  'Up to 4 photos per product.': 'ہر پروڈکٹ کی زیادہ سے زیادہ 4 تصاویر۔',
+  'Pick up to': 'زیادہ سے زیادہ منتخب کریں',
+  'Make main photo': 'مین تصویر بنائیں',
+  'tap a photo to make it main or remove it': 'مین بنانے یا ہٹانے کے لیے تصویر پر ٹیپ کریں',
+  'Up to 4 photos. Pick several at once from the gallery. They stay sharp on the website.': 'زیادہ سے زیادہ 4 تصاویر۔ گیلری سے ایک ساتھ کئی منتخب کریں۔ ویب سائٹ پر صاف دکھیں گی۔',
+  'more': 'مزید',
 };

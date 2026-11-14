@@ -1,0 +1,228 @@
+
+> test
+> firebase emulators:exec --only firestore --project demo-bizpos --config ../firebase.json "node --test rules.test.mjs"
+
+[33m[1m⚠  emulators:[22m[39m You are not currently authenticated so some features may not work correctly. Please run [1mfirebase login[22m to authenticate the CLI.
+[36m[1mi  emulators:[22m[39m Starting emulators: firestore
+[36m[1mi  emulators:[22m[39m Detected demo project ID "demo-bizpos", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+[33m[1m⚠ [22m[39m It appears you are running in a CI environment. You can avoid downloading the Firestore Emulator repeatedly by caching the /home/runner/.cache/firebase/emulators directory.
+[36m[1mi  firestore:[22m[39m downloading cloud-firestore-emulator-v1.19.8.jar...
+
+[36m[1mi  firestore:[22m[39m Firestore Emulator logging to [1mfirestore-debug.log[22m
+[32m[1m✔  firestore:[22m[39m Firestore Emulator UI websocket is running on 9150.
+[36m[1mi [22m[39m Running script: [1mnode --test rules.test.mjs[22m
+TAP version 13
+# Subtest: owner reads own shop but not someone else
+ok 1 - owner reads own shop but not someone else
+  ---
+  duration_ms: 2250.752105
+  ...
+# [2026-11-14T09:35:00.805Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3accc error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, false for 'update' @ L112, false for 'update' @ L312
+# [2026-11-14T09:35:00.842Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3accd error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, false for 'update' @ L112, false for 'update' @ L312
+# [2026-11-14T09:35:00.885Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3acce error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, false for 'update' @ L112, false for 'update' @ L312
+# [2026-11-14T09:35:00.918Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3accf error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, false for 'update' @ L112, false for 'update' @ L312
+# Subtest: owner cannot give themselves a paid plan
+ok 2 - owner cannot give themselves a paid plan
+  ---
+  duration_ms: 286.68969
+  ...
+# [2026-11-14T09:35:01.065Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3acd2 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L106:24 for 'create' @ L106, false for 'create' @ L312, evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, false for 'create' @ L106, false for 'create' @ L312
+# [2026-11-14T09:35:01.096Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3acd3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L106:24 for 'create' @ L106, false for 'create' @ L312, evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, false for 'create' @ L106, false for 'create' @ L312
+# [2026-11-14T09:35:01.136Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3acd4 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L106:24 for 'create' @ L106, false for 'create' @ L312, evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, false for 'create' @ L106, false for 'create' @ L312
+# Subtest: new shops must start free and belong to the creator
+ok 3 - new shops must start free and belong to the creator
+  ---
+  duration_ms: 212.729732
+  ...
+# Subtest: super admin can manage every shop and package
+ok 4 - super admin can manage every shop and package
+  ---
+  duration_ms: 153.970294
+  ...
+# [2026-11-14T09:35:01.410Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3acdb error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L49:23 for 'create' @ L49, false for 'create' @ L312, evaluation error at L49:23 for 'update' @ L49, false for 'update' @ L312, false for 'update' @ L49, false for 'update' @ L312
+# [2026-11-14T09:35:01.423Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3acdc error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L43:23 for 'create' @ L43, false for 'create' @ L312, evaluation error at L43:23 for 'update' @ L43, false for 'update' @ L312, false for 'create' @ L43, false for 'create' @ L312
+# [2026-11-14T09:35:01.441Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3acdd error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L297:23 for 'create' @ L297, false for 'create' @ L312, evaluation error at L297:23 for 'update' @ L297, false for 'update' @ L312, false for 'create' @ L297, false for 'create' @ L312
+# Subtest: only admins write packages, settings and subscriptions
+ok 5 - only admins write packages, settings and subscriptions
+  ---
+  duration_ms: 195.455823
+  ...
+# [2026-11-14T09:35:01.581Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ace2 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L37, false for 'create' @ L312, evaluation error at L35:24 for 'update' @ L35, false for 'update' @ L312, false for 'create' @ L37, false for 'create' @ L312
+# [2026-11-14T09:35:01.616Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ace3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L35:24 for 'update' @ L35, false for 'update' @ L312, false for 'update' @ L35, false for 'update' @ L312
+# Subtest: nobody can make themselves super admin
+ok 6 - nobody can make themselves super admin
+  ---
+  duration_ms: 172.452258
+  ...
+# [2026-11-14T09:35:01.785Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ace8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, false for 'update' @ L112, false for 'update' @ L312
+# Subtest: blocked shops cannot be edited by the owner
+ok 7 - blocked shops cannot be edited by the owner
+  ---
+  duration_ms: 104.297581
+  ...
+# [2026-11-14T09:35:01.867Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3acea error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L303:24 for 'create' @ L303, false for 'create' @ L312, false for 'create' @ L303, false for 'create' @ L312
+# [2026-11-14T09:35:01.877Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3aceb error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L303, false for 'create' @ L312
+# Subtest: upgrade requests: owners create for their own shop only
+ok 8 - upgrade requests: owners create for their own shop only
+  ---
+  duration_ms: 90.544463
+  ...
+# [2026-11-14T09:35:02.005Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3acef error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L54, false for 'create' @ L312, evaluation error at L56:24 for 'update' @ L56, false for 'update' @ L312, false for 'update' @ L56, false for 'update' @ L312
+# [2026-11-14T09:35:02.061Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3acf1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L59:24 for 'delete' @ L59, false for 'delete' @ L312, false for 'delete' @ L59, false for 'delete' @ L312
+# Subtest: users documents are private
+ok 9 - users documents are private
+  ---
+  duration_ms: 184.046869
+  ...
+# [2026-11-14T09:35:02.167Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3acf4 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L106:24 for 'create' @ L106, false for 'create' @ L312, evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, false for 'create' @ L106, false for 'create' @ L312
+# [2026-11-14T09:35:02.219Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3acf6 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, false for 'update' @ L112, false for 'update' @ L312
+# [2026-11-14T09:35:02.242Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3acf7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, false for 'update' @ L112, false for 'update' @ L312
+# [2026-11-14T09:35:02.297Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3acf9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, false for 'update' @ L112, false for 'update' @ L312
+# Subtest: super admin creates a company; owner joins it with the code
+ok 10 - super admin creates a company; owner joins it with the code
+  ---
+  duration_ms: 251.348767
+  ...
+# Subtest: verified owner finds the company made for their email
+ok 11 - verified owner finds the company made for their email
+  ---
+  duration_ms: 132.996315
+  ...
+# [2026-11-14T09:35:02.516Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad01 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L154:24 for 'create' @ L154, false for 'create' @ L312, evaluation error at L155:24 for 'update' @ L155, false for 'update' @ L312, false for 'create' @ L154, false for 'create' @ L312
+# [2026-11-14T09:35:02.537Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad02 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L154:24 for 'create' @ L154, false for 'create' @ L312, evaluation error at L155:24 for 'update' @ L155, false for 'update' @ L312, false for 'create' @ L154, false for 'create' @ L312
+# [2026-11-14T09:35:02.560Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad03 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L154:24 for 'create' @ L154, false for 'create' @ L312, evaluation error at L155:24 for 'update' @ L155, false for 'update' @ L312, false for 'create' @ L154, false for 'create' @ L312
+# [2026-11-14T09:35:02.635Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad06 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L161:25 for 'create' @ L161, false for 'create' @ L312, evaluation error at L161:25 for 'update' @ L161, false for 'update' @ L312, false for 'create' @ L161, false for 'create' @ L312
+# [2026-11-14T09:35:02.676Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad08 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L155:24 for 'update' @ L155, false for 'update' @ L312, false for 'update' @ L155, false for 'update' @ L312
+# [2026-11-14T09:35:02.788Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad0d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L177:23 for 'create' @ L177, false for 'create' @ L312, evaluation error at L177:23 for 'update' @ L177, false for 'update' @ L312, false for 'create' @ L177, false for 'create' @ L312
+# [2026-11-14T09:35:02.862Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad10 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L186, false for 'create' @ L312, false for 'update' @ L221, false for 'update' @ L312
+# [2026-11-14T09:35:02.880Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad11 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L186:24 for 'create' @ L186, false for 'create' @ L312, false for 'update' @ L221, false for 'update' @ L312, false for 'create' @ L186, false for 'create' @ L312
+# [2026-11-14T09:35:02.943Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad14 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L221:24 for 'update' @ L221, false for 'update' @ L312, false for 'update' @ L221, false for 'update' @ L312
+# Subtest: online store: paid shops publish, website reads, customers order
+ok 12 - online store: paid shops publish, website reads, customers order
+  ---
+  duration_ms: 497.131837
+  ...
+# [2026-11-14T09:35:03.003Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad17 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L229, false for 'create' @ L312, evaluation error at L232:24 for 'update' @ L232, false for 'update' @ L312, false for 'create' @ L229, false for 'create' @ L312
+# [2026-11-14T09:35:03.017Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad18 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L232:24 for 'update' @ L232, false for 'update' @ L312, Property lastOrder is undefined on object. for 'update' @ L232, false for 'update' @ L312
+# [2026-11-14T09:35:03.051Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad1a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# false for 'create' @ L186, false for 'create' @ L312, evaluation error at L221:24 for 'update' @ L221, false for 'update' @ L312, false for 'create' @ L186, false for 'create' @ L312
+# [2026-11-14T09:35:03.092Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad1c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L221:24 for 'update' @ L221, false for 'update' @ L312, evaluation error at L257:24 for 'create' @ L257, false for 'create' @ L312, evaluation error at L266:32 for 'update' @ L266, false for 'update' @ L312, evaluation error at L232:24 for 'update' @ L232, false for 'update' @ L312, false for 'update' @ L221, false for 'update' @ L312, false for 'create' @ L257, false for 'create' @ L312
+# [2026-11-14T09:35:03.128Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad1d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L221:24 for 'update' @ L221, false for 'update' @ L312, evaluation error at L257:24 for 'create' @ L257, false for 'create' @ L312, evaluation error at L266:32 for 'update' @ L266, false for 'update' @ L312, evaluation error at L232:24 for 'update' @ L232, false for 'update' @ L312, false for 'update' @ L221, false for 'update' @ L312, false for 'update' @ L266, false for 'update' @ L312
+# [2026-11-14T09:35:03.147Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad19 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L186:24 for 'create' @ L186, false for 'create' @ L312, evaluation error at L221:24 for 'update' @ L221, false for 'update' @ L312, evaluation error at L232:24 for 'update' @ L232, false for 'update' @ L312, false for 'create' @ L186, false for 'create' @ L312
+# [2026-11-14T09:35:03.172Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad1e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L186:24 for 'create' @ L186, false for 'create' @ L312, evaluation error at L221:24 for 'update' @ L221, false for 'update' @ L312, evaluation error at L232:24 for 'update' @ L232, false for 'update' @ L312, false for 'create' @ L186, false for 'create' @ L312, false for 'update' @ L232, false for 'update' @ L312
+# [2026-11-14T09:35:03.207Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad1f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L186:24 for 'create' @ L186, false for 'create' @ L312, evaluation error at L221:24 for 'update' @ L221, false for 'update' @ L312, evaluation error at L232:24 for 'update' @ L232, false for 'update' @ L312, false for 'update' @ L232, false for 'update' @ L312
+# [2026-11-14T09:35:03.227Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad20 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L186:24 for 'create' @ L186, false for 'create' @ L312, evaluation error at L221:24 for 'update' @ L221, false for 'update' @ L312, false for 'create' @ L186, false for 'create' @ L312
+# Subtest: shopper accounts and BizPOS coins
+ok 13 - shopper accounts and BizPOS coins
+  ---
+  duration_ms: 315.714303
+  ...
+# [2026-11-14T09:35:03.400Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad25 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L166:27 for 'create' @ L166, false for 'create' @ L312, evaluation error at L166:27 for 'update' @ L166, false for 'update' @ L312, false for 'create' @ L166, false for 'create' @ L312
+# [2026-11-14T09:35:03.428Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad26 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L166:27 for 'create' @ L166, false for 'create' @ L312, evaluation error at L166:27 for 'update' @ L166, false for 'update' @ L312, false for 'create' @ L166, false for 'create' @ L312
+# Subtest: product photos: owner adds small ones, others cannot
+ok 14 - product photos: owner adds small ones, others cannot
+  ---
+  duration_ms: 201.248168
+  ...
+# [2026-11-14T09:35:03.530Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad2b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L272:23 for 'create' @ L272, false for 'create' @ L312, evaluation error at L272:23 for 'update' @ L272, false for 'update' @ L312, false for 'create' @ L272, false for 'create' @ L312
+# [2026-11-14T09:35:03.567Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad2d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L278:23 for 'create' @ L278, false for 'create' @ L312, evaluation error at L278:23 for 'update' @ L278, false for 'update' @ L312, false for 'create' @ L278, false for 'create' @ L312
+# Subtest: announcements and offers: everyone reads, only admins write
+ok 15 - announcements and offers: everyone reads, only admins write
+  ---
+  duration_ms: 106.898791
+  ...
+# [2026-11-14T09:35:03.629Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad30 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, evaluation error at L285:24 for 'create' @ L285, false for 'create' @ L312, evaluation error at L291:32 for 'update' @ L291, false for 'update' @ L312, false for 'create' @ L285, false for 'create' @ L312, false for 'update' @ L112, false for 'update' @ L312
+# [2026-11-14T09:35:03.651Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad31 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, evaluation error at L285:24 for 'create' @ L285, false for 'create' @ L312, evaluation error at L291:32 for 'update' @ L291, false for 'update' @ L312, false for 'create' @ L285, false for 'create' @ L312, false for 'update' @ L112, false for 'update' @ L312
+# [2026-11-14T09:35:03.671Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad32 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, evaluation error at L285:24 for 'create' @ L285, false for 'create' @ L312, evaluation error at L291:32 for 'update' @ L291, false for 'update' @ L312, false for 'create' @ L285, false for 'create' @ L312, false for 'update' @ L112, false for 'update' @ L312
+# [2026-11-14T09:35:03.685Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad33 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, evaluation error at L285:24 for 'create' @ L285, false for 'create' @ L312, evaluation error at L291:32 for 'update' @ L291, false for 'update' @ L312, false for 'create' @ L285, false for 'create' @ L312, false for 'update' @ L112, false for 'update' @ L312
+# [2026-11-14T09:35:03.697Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad34 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, false for 'update' @ L112, false for 'update' @ L312
+# [2026-11-14T09:35:03.735Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad35 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, evaluation error at L285:24 for 'create' @ L285, false for 'create' @ L312, evaluation error at L291:32 for 'update' @ L291, false for 'update' @ L312, false for 'update' @ L291, false for 'update' @ L312
+# [2026-11-14T09:35:03.762Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad37 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, false for 'create' @ L285, false for 'create' @ L312, evaluation error at L291:32 for 'update' @ L291, false for 'update' @ L312, false for 'update' @ L291, false for 'update' @ L312
+# Subtest: offer: a free shop with enough products claims it once
+ok 16 - offer: a free shop with enough products claims it once
+  ---
+  duration_ms: 194.800321
+  ...
+# [2026-11-14T09:35:03.830Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad3a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L59:24 for 'delete' @ L59, false for 'delete' @ L312, false for 'delete' @ L59, false for 'delete' @ L312
+# [2026-11-14T09:35:03.846Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad3b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L125:24 for 'delete' @ L125, false for 'delete' @ L312, false for 'delete' @ L125, false for 'delete' @ L312
+# [2026-11-14T09:35:03.861Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad3c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L251:24 for 'delete' @ L251, false for 'delete' @ L312, false for 'delete' @ L251, false for 'delete' @ L312
+# Subtest: account deletion: users remove their own data only
+ok 17 - account deletion: users remove their own data only
+  ---
+  duration_ms: 170.068887
+  ...
+# [2026-11-14T09:35:03.977Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad42 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L112:24 for 'update' @ L112, false for 'update' @ L312, false for 'update' @ L112, false for 'update' @ L312
+# [2026-11-14T09:35:04.012Z]  @firebase/firestore: Firestore (11.10.0): GrpcConnection RPC 'Write' stream 0x40c3ad44 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+# evaluation error at L307:32 for 'update' @ L307, false for 'update' @ L312, false for 'update' @ L307, false for 'update' @ L312
+# Subtest: only the super admin verifies websites for import
+ok 18 - only the super admin verifies websites for import
+  ---
+  duration_ms: 94.931462
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5876.986271
+[32m[1m✔ [22m[39m Script exited successfully (code 0)
+[36m[1mi  emulators:[22m[39m Shutting down emulators.
+[36m[1mi  firestore:[22m[39m Stopping Firestore Emulator
+[36m[1mi  hub:[22m[39m Stopping emulator hub
+[36m[1mi  logging:[22m[39m Stopping Logging Emulator

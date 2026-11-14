@@ -79,5 +79,7 @@
 	</array>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Face ID unlocks BizPOS instead of typing your PIN.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Your location sets where your store is, so nearby customers can find it.</string>
 </dict>
 </plist>

@@ -26,18 +26,19 @@ def patch(path: Path, fn):
 
 # ---------------------------------------------------------------- Android
 def settings_gradle(s: str) -> str:
-    # mobile_scanner 6 ships Kotlin 2.1 stdlib, so the Kotlin Gradle plugin must be 2.1+.
-    s = re.sub(r'(id\s+"org\.jetbrains\.kotlin\.android"\s+version\s+")[^"]+(")', r"\g<1>2.1.0\2", s)
-    # CameraX 1.5 (used by mobile_scanner) needs Android Gradle plugin 8.6+.
-    return re.sub(r'(id\s+"com\.android\.application"\s+version\s+")[^"]+(")', r"\g<1>8.7.3\2", s)
+    # Kotlin 2.2 and Android Gradle plugin 8.11 build for Android 16 (API 36).
+    s = re.sub(r'(id\s+"org\.jetbrains\.kotlin\.android"\s+version\s+")[^"]+(")', r"\g<1>2.2.20\2", s)
+    return re.sub(r'(id\s+"com\.android\.application"\s+version\s+")[^"]+(")', r"\g<1>8.11.1\2", s)
 
 
 def gradle_wrapper(s: str) -> str:
-    return re.sub(r"gradle-[0-9.]+-(all|bin)\.zip", "gradle-8.10.2-all.zip", s)
+    return re.sub(r"gradle-[0-9.]+-(all|bin)\.zip", "gradle-8.14.3-all.zip", s)
 
 
 def app_gradle(s: str) -> str:
-    s = re.sub(r"compileSdk\s*=\s*flutter\.compileSdkVersion", "compileSdk = 35", s)
+    # Google Play: new apps and updates must target Android 16 (API 36).
+    s = re.sub(r"compileSdk\s*=\s*(flutter\.compileSdkVersion|\d+)", "compileSdk = 36", s)
+    s = re.sub(r"targetSdk\s*=\s*(flutter\.targetSdkVersion|\d+)", "targetSdk = 36", s)
     s = re.sub(r"minSdk\s*=\s*flutter\.minSdkVersion", "minSdk = 23", s)
     s = re.sub(r"minSdkVersion\s+flutter\.minSdkVersion", "minSdkVersion 23", s)
     if "keystoreProperties" not in s:

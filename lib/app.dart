@@ -138,7 +138,7 @@ ThemeData buildTheme(Brightness b) {
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(textStyle: const TextStyle(fontFamily: Tw.font, fontWeight: FontWeight.w600)),
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 0,
       margin: EdgeInsets.zero,
       color: dark ? Tw.slate900 : Colors.white,
@@ -173,7 +173,7 @@ ThemeData buildTheme(Brightness b) {
       backgroundColor: dark ? Tw.slate800 : Tw.slate900,
       contentTextStyle: const TextStyle(fontFamily: Tw.font, color: Colors.white),
     ),
-    dialogTheme: DialogTheme(
+    dialogTheme: DialogThemeData(
       backgroundColor: dark ? Tw.slate900 : Colors.white,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(Tw.r3xl))),
     ),

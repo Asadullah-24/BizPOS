@@ -49,11 +49,18 @@ class AppState extends ChangeNotifier {
     I18n.lang = language;
   }
 
+  /// Settings that are also shown online (shop record and website card).
+  static const profileKeys = {'business_name', 'business_phone', 'business_address', 'currency_symbol', 'business_type'};
+
+  /// Set by the cloud service: copies the shop profile online when it changes.
+  static void Function()? onProfileChanged;
+
   Future<void> setSetting(String key, String value) async {
     await Db.instance.setSetting(key, value);
     settings[key] = value;
     _applyFormatting();
     notifyListeners();
+    if (profileKeys.contains(key)) onProfileChanged?.call();
   }
 
   Future<void> setSettings(Map<String, String> values) async {
@@ -63,6 +70,7 @@ class AppState extends ChangeNotifier {
     }
     _applyFormatting();
     notifyListeners();
+    if (values.keys.any(profileKeys.contains)) onProfileChanged?.call();
   }
 
   /// Switches language before the business exists (onboarding).

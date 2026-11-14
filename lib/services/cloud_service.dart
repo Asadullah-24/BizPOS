@@ -102,6 +102,7 @@ class CloudService extends ChangeNotifier {
       db.settings = const Settings(persistenceEnabled: true);
       ready = true;
       NoticeService.instance.start();
+      AppState.onProfileChanged = _profileChanged;
       _settingsSub = db.doc('settings/app').snapshots().listen((s) {
         final d = s.data();
         if (d == null) return;
@@ -359,6 +360,8 @@ class CloudService extends ChangeNotifier {
       store.watchOrders();
       unawaited(store.pushStats());
       unawaited(store.syncAll().catchError((_) {}));
+      // Business details edited while offline or before this fix reach the shop record.
+      if (AppState.instance.settings.containsKey('business_name')) _profileChanged();
       try {
         await db.doc('shops/$shopId').update({
           'devices.$_device.name': '${Platform.operatingSystem} ${Platform.operatingSystemVersion}'.trim(),
@@ -435,13 +438,29 @@ class CloudService extends ChangeNotifier {
 
   Future<void> updateShopProfile() async {
     final id = shopId;
-    if (id == null) return;
+    if (id == null || !signedIn) return;
     final app = AppState.instance;
-    await db.doc('shops/$id').update({
+    final fields = {
       'name': app.businessName,
       'phone': app.settings['business_phone'] ?? '',
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+      if (app.businessType != null) 'category': app.businessType!.name,
+    };
+    final current = shop ?? {};
+    if (fields.entries.every((e) => '${current[e.key] ?? ''}' == '${e.value}')) {
+      await StoreService.instance.refreshCard();
+      return;
+    }
+    await db.doc('shops/$id').update({...fields, 'updatedAt': FieldValue.serverTimestamp()});
+    // The website card shows the same name, phone and address.
+    await StoreService.instance.refreshCard();
+  }
+
+  Timer? _profileTimer;
+
+  /// Business details changed in Settings: copy them online a moment later.
+  void _profileChanged() {
+    _profileTimer?.cancel();
+    _profileTimer = Timer(const Duration(seconds: 2), () => updateShopProfile().catchError((_) {}));
   }
 
   Map<String, Map<String, dynamic>> get devices {

@@ -22,6 +22,7 @@ import '../common.dart';
 import '../tokens.dart';
 import 'account_screen.dart';
 import 'plan_screen.dart';
+import 'web_import_screen.dart';
 
 /// The shop's page on the BizPOS website: turn it on, pick the products to
 /// show, share the link, and see orders.
@@ -116,6 +117,12 @@ class _OnlineStoreScreenState extends State<OnlineStoreScreen> {
                       ? tr('Turn on the products customers can order.')
                       : '${tr('Your plan shows')} $allowance ${tr('products online. Ask BizPOS support for more.')}',
                   style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WebImportScreen())),
+                  icon: const Icon(Icons.cloud_download_outlined),
+                  label: Text(tr('Import products from my website')),
                 ),
                 SearchField(onChanged: (v) => setState(() => _q = v), hint: 'Search name, SKU or barcode'),
                 LiveData<List<Product>>(

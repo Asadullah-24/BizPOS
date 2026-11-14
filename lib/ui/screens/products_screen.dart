@@ -13,6 +13,7 @@ import '../brand.dart';
 import '../common.dart';
 import 'categories_screen.dart';
 import 'product_form.dart';
+import 'web_import_screen.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -30,6 +31,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final app = context.watch<AppState>();
     return Scaffold(
       appBar: AppBar(title: Text(tr('Products')), actions: [
+        IconButton(
+          tooltip: tr('Import from my website'),
+          icon: const Icon(Icons.cloud_download_outlined),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const WebImportScreen())),
+        ),
         IconButton(
           tooltip: tr('Categories'),
           icon: const Icon(Icons.category_outlined),

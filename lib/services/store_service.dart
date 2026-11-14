@@ -248,7 +248,7 @@ class StoreService extends ChangeNotifier {
       final p = await ProductService.byId(productId);
       final hasPhotos = ((d.data()?['photos'] ?? 0) as num) > 0;
       if (p != null) {
-        await ref.set(await _itemData(p, keepThumb: hasPhotos ? d.data()?['thumb'] as String? : null), SetOptions(merge: true));
+        await ref.set(await _itemData(p, keepThumb: hasPhotos ? (d.data()?['thumb'] as String?) : null), SetOptions(merge: true));
       }
     } catch (_) {}
   }

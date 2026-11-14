@@ -66,6 +66,13 @@ class NoticeService extends ChangeNotifier {
     }, onError: (_) {});
   }
 
+  Future<void> stop() async {
+    await _aSub?.cancel();
+    await _oSub?.cancel();
+    _aSub = null;
+    _oSub = null;
+  }
+
   /// A phone notification the first time this phone sees an announcement.
   void _alertNew() {
     final seen = Local.prefs.getStringList('seen_notices') ?? <String>[];

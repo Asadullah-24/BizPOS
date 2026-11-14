@@ -96,7 +96,7 @@ test('users documents are private', async () => {
   await assertFails(getDoc(doc(as('bob'), 'users/alice')));
   await assertFails(setDoc(doc(as('bob'), 'users/alice'), { email: 'b@x.com' }));
   await assertSucceeds(getDoc(doc(as('boss'), 'users/alice')));
-  await assertFails(deleteDoc(doc(as('alice'), 'users/alice')));
+  await assertFails(deleteDoc(doc(as('bob'), 'users/alice')));
 });
 
 test('super admin creates a company; owner joins it with the code', async () => {

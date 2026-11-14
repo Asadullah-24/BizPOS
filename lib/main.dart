@@ -9,6 +9,7 @@ import 'core/license.dart';
 import 'services/cloud_service.dart';
 import 'services/drive_service.dart';
 import 'services/profile_service.dart';
+import 'services/update_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
@@ -34,4 +35,6 @@ Future<void> main() async {
       child: const BizPosApp(),
     ),
   );
+  // After the first frame, so a slow Play Store check never delays opening.
+  UpdateService.instance.init();
 }

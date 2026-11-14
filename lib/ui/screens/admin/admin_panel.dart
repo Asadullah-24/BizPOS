@@ -17,6 +17,7 @@ import '../super_admin/super_admin_login.dart';
 import '../../../services/biometric_service.dart';
 import '../../tokens.dart';
 import '../notices_screen.dart';
+import '../../update_gate.dart';
 import 'company_form.dart';
 import 'store_admin.dart';
 
@@ -304,6 +305,15 @@ class _Overview extends StatelessWidget {
               subtitle: Text(tr('Send a message to all shops and the website, or give a free plan offer.')),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NoticesAdmin())),
+            ),
+          ),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.system_update_rounded, color: Tw.emerald500),
+              title: Text(tr('App updates')),
+              subtitle: Text(tr('Tell older phones to update, or make an update required.')),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => appUpdatesDialog(context),
             ),
           ),
           const SizedBox(height: 16),

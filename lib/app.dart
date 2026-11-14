@@ -17,6 +17,7 @@ import 'ui/screens/online_store_screen.dart';
 import 'ui/screens/onboarding_screen.dart';
 import 'ui/screens/shell.dart';
 import 'ui/tokens.dart';
+import 'ui/update_gate.dart';
 
 ThemeData buildTheme(Brightness b) {
   final dark = b == Brightness.dark;
@@ -338,6 +339,8 @@ class _BizPosAppState extends State<BizPosApp> with WidgetsBindingObserver {
               ),
             ),
           ),
+        // Above sign-in and the lock screen: an update is offered before anything else.
+        const Positioned.fill(child: UpdateGate()),
       ]),
     );
   }

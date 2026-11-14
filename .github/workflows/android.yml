@@ -99,7 +99,8 @@ jobs:
       - name: Build APKs (one per CPU, smaller) and Play Store bundle
         run: |
           set -o pipefail
-          OPTS="--release --obfuscate --split-debug-info=build/symbols"
+          # Every CI build gets a higher version code, as Google Play requires.
+          OPTS="--release --obfuscate --split-debug-info=build/symbols --build-number=$((GITHUB_RUN_NUMBER + 100))"
           # Maven Central sometimes fails for a moment; retry once.
           flutter build apk $OPTS --split-per-abi 2>&1 | tee -a ci.log || (sleep 30 && flutter build apk $OPTS --split-per-abi 2>&1 | tee -a ci.log)
           flutter build appbundle $OPTS 2>&1 | tee -a ci.log

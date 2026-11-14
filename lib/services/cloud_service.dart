@@ -107,6 +107,9 @@ class CloudService extends ChangeNotifier {
         if (d == null) return;
         Local.prefs.setString('cloud_settings', jsonEncode(_jsonSafe(d)));
         _applySettings(d);
+        // Fresh from the server (not the offline cache): update checks may run.
+        if (!s.metadata.isFromCache) settingsLive = true;
+        notifyListeners();
       }, onError: (_) {});
       _authSub = auth.authStateChanges().listen(_onAuth, onError: (_) {});
     } catch (e) {
@@ -123,6 +126,9 @@ class CloudService extends ChangeNotifier {
 
   /// settings/app as last read (branding, online store settings).
   Map<String, dynamic> appSettings = {};
+
+  /// settings/app was read from the server in this session.
+  bool settingsLive = false;
 
   void _applySettings(Map<String, dynamic> d) {
     appSettings = d;

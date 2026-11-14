@@ -84,7 +84,7 @@ service cloud.firestore {
         && request.resource.data.features == pkg.features
         && request.resource.data.adFree == pkg.get('adFree', true)
         && request.resource.data.maxProducts == pkg.get('maxProducts', 0)
-        && request.resource.data.onlineProducts == pkg.get('onlineProducts', 3)
+        && request.resource.data.onlineProducts == pkg.get('onlineProducts', 0)
         && request.resource.data.expiresAt is int
         && request.resource.data.expiresAt > now
         && request.resource.data.expiresAt <= now + offer.days * 86400000 + 600000

@@ -235,7 +235,7 @@ test('announcements and offers: everyone reads, only admins write', async () => 
 const claim = (db, { shop = 's1', offer = 'o1', days = 15, pkgFields = {} } = {}) => {
   const b = writeBatch(db);
   b.update(doc(db, `shops/${shop}`), {
-    plan: 'p1', planName: 'Pro', features: ['voice'], adFree: true, maxProducts: 0, onlineProducts: 3,
+    plan: 'p1', planName: 'Pro', features: ['voice'], adFree: true, maxProducts: 0, onlineProducts: 0,
     expiresAt: Date.now() + days * 86400000, offer, ...pkgFields,
   });
   b.set(doc(db, `offerClaims/${shop}_${offer}`), { shopId: shop, offerId: offer, ownerUid: 'alice' });
@@ -257,7 +257,7 @@ test('offer: a free shop with enough products claims it once', async () => {
   await assertFails(claim(db, { pkgFields: { features: ['voice', 'reports'] } }));
   await assertFails(claim(db, { offer: 'o2' }));
   // Plan change without the claim record: refused.
-  await assertFails(updateDoc(doc(db, 'shops/s1'), { plan: 'p1', planName: 'Pro', features: ['voice'], adFree: true, maxProducts: 0, onlineProducts: 3, expiresAt: Date.now() + 86400000, offer: 'o1' }));
+  await assertFails(updateDoc(doc(db, 'shops/s1'), { plan: 'p1', planName: 'Pro', features: ['voice'], adFree: true, maxProducts: 0, onlineProducts: 0, expiresAt: Date.now() + 86400000, offer: 'o1' }));
   await assertSucceeds(claim(db));
   // Second time: refused.
   await env.withSecurityRulesDisabled(async (ctx) => updateDoc(doc(ctx.firestore(), 'shops/s1'), { plan: 'free', expiresAt: 1 }));

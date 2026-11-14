@@ -545,6 +545,19 @@ class ShopAdminDetail extends StatelessWidget {
             KeyValue('Phone', phone),
             KeyValue('Category', '${d['category'] ?? ''}'),
             KeyValue('Joined', _ms(d['createdAt']) == 0 ? '' : Fmt.date(_ms(d['createdAt']))),
+            if (((d['importSites'] as List?) ?? []).isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(tr('Verified websites for import'), style: Theme.of(context).textTheme.labelLarge),
+              const SizedBox(height: 4),
+              Wrap(spacing: 8, children: [
+                for (final h in (d['importSites'] as List))
+                  InputChip(
+                    avatar: const Icon(Icons.verified_rounded, size: 18, color: Tw.emerald500),
+                    label: Text('$h'),
+                    onDeleted: () => guard(context, () => CloudService.instance.removeImportSite(shopId, '$h')),
+                  ),
+              ]),
+            ],
             const SizedBox(height: 12),
             FilledButton.icon(
               icon: const Icon(Icons.workspace_premium),
@@ -738,13 +751,16 @@ class _PackageEditorState extends State<PackageEditor> {
       ..amount = Fmt.parse(_amount.text)
       ..days = int.tryParse(_days.text.trim()) ?? 30
       ..maxProducts = int.tryParse(_maxProducts.text.trim()) ?? 0
-      ..onlineProducts = int.tryParse(_onlineProducts.text.trim()) ?? 3
+      ..onlineProducts = int.tryParse(_onlineProducts.text.trim()) ?? 0
       ..sort = int.tryParse(_sort.text.trim()) ?? 0
       ..description = _desc.text.trim()
       ..features = _features.toList()
       ..active = _active;
-    final ok = await guard(context, () => CloudService.instance.savePackage(p), success: 'Saved');
-    if (ok && mounted) Navigator.pop(context);
+    var shops = 0;
+    final ok = await guard(context, () async => shops = await CloudService.instance.savePackage(p));
+    if (!ok || !mounted) return;
+    showSnack(context, shops == 0 ? tr('Saved') : '${tr('Saved')}. $shops ${tr('shops on this package were updated.')}');
+    Navigator.pop(context);
   }
 
   @override
@@ -812,6 +828,9 @@ class _Requests extends StatelessWidget {
         list.sort((a, b) => _ms(b['createdAt']).compareTo(_ms(a['createdAt'])));
         return ListView(children: [
           for (final r in list)
+            if (r['type'] == 'import')
+              _ImportRequest(r: r)
+            else
             Card(
               margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
               child: Padding(
@@ -842,6 +861,60 @@ class _Requests extends StatelessWidget {
             ),
         ]);
       },
+    );
+  }
+}
+
+/// A shop asks to import products from a website. Approve only when the
+/// website really belongs to that shop (call the number on the website, etc.).
+class _ImportRequest extends StatelessWidget {
+  const _ImportRequest({required this.r});
+  final Map<String, dynamic> r;
+
+  @override
+  Widget build(BuildContext context) {
+    final cloud = CloudService.instance;
+    final site = '${r['site']}';
+    final theme = Theme.of(context);
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.cloud_download_rounded, color: Tw.sky400),
+            const SizedBox(width: 8),
+            Expanded(child: Text('${r['shopName']}', style: theme.textTheme.titleMedium)),
+          ]),
+          const SizedBox(height: 4),
+          Text('${tr('Wants to import products from')} $site'),
+          Text('${r['ownerEmail'] ?? ''}${_ms(r['createdAt']) == 0 ? '' : ' · ${Fmt.dateTime(_ms(r['createdAt']))}'}',
+              style: theme.textTheme.bodySmall),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: Tw.amber500.withOpacity(0.12), borderRadius: BorderRadius.circular(Tw.rXl)),
+            child: Text(tr('Approve only if this website belongs to this shop. Open it and check the name and phone number, or call the shop.'),
+                style: theme.textTheme.bodySmall),
+          ),
+          const SizedBox(height: 8),
+          Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+            TextButton.icon(
+              onPressed: () => launchUrl(Uri.parse('https://$site'), mode: LaunchMode.externalApplication),
+              icon: const Icon(Icons.open_in_new_rounded, size: 18),
+              label: Text(tr('Open website')),
+            ),
+            TextButton(
+              onPressed: () => guard(context, () => cloud.resolveRequest(r['id'] as String, 'rejected')),
+              child: Text(tr('Reject')),
+            ),
+            FilledButton(
+              onPressed: () => guard(context, () => cloud.approveImport(r), success: 'Website approved'),
+              child: Text(tr('Approve')),
+            ),
+          ]),
+        ]),
+      ),
     );
   }
 }

@@ -114,7 +114,7 @@ class Package {
     this.sort = 0,
     this.description = '',
     this.maxProducts = 0,
-    this.onlineProducts = 3,
+    this.onlineProducts = 0,
   });
 
   final String id;
@@ -152,7 +152,7 @@ class Package {
         sort: ((m['sort'] ?? 0) as num).toInt(),
         description: (m['description'] ?? '') as String,
         maxProducts: ((m['maxProducts'] ?? 0) as num).toInt(),
-        onlineProducts: ((m['onlineProducts'] ?? 3) as num).toInt(),
+        onlineProducts: ((m['onlineProducts'] ?? 0) as num).toInt(),
       );
 
   Map<String, dynamic> toMap() => {

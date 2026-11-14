@@ -778,7 +778,29 @@ class CloudService extends ChangeNotifier {
     await _storefrontAdmin(shopId, {'adminHidden': blocked});
   }
 
-  Future<void> savePackage(Package p) => db.doc('packages/${p.id}').set(p.toMap());
+  /// Saves a package and gives the shops already on it the new limits and features.
+  Future<int> savePackage(Package p) async {
+    await db.doc('packages/${p.id}').set(p.toMap());
+    final shops = await db.collection('shops').where('plan', isEqualTo: p.id).get();
+    var batch = db.batch();
+    var n = 0;
+    for (final d in shops.docs) {
+      batch.update(d.reference, {
+        'planName': p.name,
+        'features': p.features,
+        'adFree': p.adFree,
+        'maxProducts': p.maxProducts,
+        'onlineProducts': p.onlineProducts,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      if (++n % 400 == 0) {
+        await batch.commit();
+        batch = db.batch();
+      }
+    }
+    await batch.commit();
+    return n;
+  }
 
   Future<void> deletePackage(String id) => db.doc('packages/$id').delete();
 
@@ -789,6 +811,75 @@ class CloudService extends ChangeNotifier {
     }
     await batch.commit();
   }
+
+  // ------------------------------------------------- website import checks
+
+  /// "https://www.Tajoree.com/shop" → "tajoree.com"
+  static String siteHost(String site) {
+    var s = site.trim().toLowerCase();
+    if (s.isEmpty) return '';
+    if (!s.startsWith('http')) s = 'https://$s';
+    var h = Uri.tryParse(s)?.host ?? '';
+    if (h.startsWith('www.')) h = h.substring(4);
+    return h;
+  }
+
+  /// Websites the super admin confirmed belong to this shop (shops/{id}.importSites).
+  List<String> get importSites => ((shop?['importSites'] as List?) ?? []).map((e) => '$e').toList();
+
+  bool importAllowed(String site) => isAdmin || importSites.contains(siteHost(site));
+
+  /// The owner asks the super admin to confirm that [site] is theirs.
+  /// Returns false when a request for it is already waiting.
+  Future<bool> requestImport(String site) async {
+    final u = user;
+    final id = shopId;
+    if (u == null || id == null) throw StateError('Sign in to your BizPOS account first.');
+    final host = siteHost(site);
+    if (host.isEmpty) throw StateError('Type your website address.');
+    final mine = await db.collection('requests').where('ownerUid', isEqualTo: u.uid).get();
+    final waiting = mine.docs.any((d) => d.data()['type'] == 'import' && d.data()['site'] == host && d.data()['status'] == 'pending');
+    if (waiting) return false;
+    await db.collection('requests').add({
+      'type': 'import',
+      'site': host,
+      'ownerUid': u.uid,
+      'ownerEmail': u.email ?? '',
+      'shopId': id,
+      'shopName': AppState.instance.businessName,
+      'packageName': 'Website import',
+      'price': host,
+      'device': _device,
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    return true;
+  }
+
+  /// Whether a request to import from [site] is waiting for the super admin.
+  Future<bool> importPending(String site) async {
+    final u = user;
+    if (u == null) return false;
+    final host = siteHost(site);
+    final mine = await db.collection('requests').where('ownerUid', isEqualTo: u.uid).get();
+    return mine.docs.any((d) => d.data()['type'] == 'import' && d.data()['site'] == host && d.data()['status'] == 'pending');
+  }
+
+  /// Super admin: the website is the shop's own; its products may be imported.
+  Future<void> approveImport(Map<String, dynamic> request) async {
+    final batch = db.batch();
+    batch.update(db.doc('shops/${request['shopId']}'), {
+      'importSites': FieldValue.arrayUnion([request['site']]),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    batch.update(db.doc('requests/${request['id']}'), {'status': 'approved', 'resolvedAt': FieldValue.serverTimestamp()});
+    await batch.commit();
+  }
+
+  Future<void> removeImportSite(String shopId, String host) => db.doc('shops/$shopId').update({
+        'importSites': FieldValue.arrayRemove([host]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
   Future<void> resolveRequest(String id, String status) =>
       db.doc('requests/$id').update({'status': status, 'resolvedAt': FieldValue.serverTimestamp()});

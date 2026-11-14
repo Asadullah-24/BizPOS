@@ -38,8 +38,48 @@ class _WebImportScreenState extends State<WebImportScreen> {
 
   bool get _canPublish => CloudService.instance.signedIn && StoreService.instance.myAllowance != null;
 
+  /// The website is not confirmed for this shop yet: ask the super admin.
+  String? _needsApproval;
+  bool _pending = false;
+
+  Future<void> _requestApproval() async {
+    final site = _site.text;
+    try {
+      final sent = await CloudService.instance.requestImport(site);
+      if (!mounted) return;
+      setState(() => _pending = true);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(tr(sent ? 'Request sent. BizPOS will check the website and approve it.' : 'Your request is already waiting for BizPOS.')),
+      ));
+    } catch (e) {
+      if (mounted) setState(() => _error = e is StateError ? e.message : '$e');
+    }
+  }
+
   Future<void> _load() async {
     FocusScope.of(context).unfocus();
+    final cloud = CloudService.instance;
+    if (!cloud.signedIn) {
+      setState(() => _error = tr('Sign in to your BizPOS account to import from a website.'));
+      return;
+    }
+    if (CloudService.siteHost(_site.text).isEmpty) {
+      setState(() => _error = tr('Type your website address.'));
+      return;
+    }
+    // Only websites the super admin confirmed as this shop's own can be imported,
+    // so nobody copies another shop's or a marketplace's products.
+    if (!cloud.importAllowed(_site.text)) {
+      final pending = await cloud.importPending(_site.text).catchError((_) => false);
+      setState(() {
+        _needsApproval = CloudService.siteHost(_site.text);
+        _pending = pending;
+        _items = null;
+        _error = null;
+      });
+      return;
+    }
+    _needsApproval = null;
     setState(() {
       _loading = true;
       _error = null;
@@ -136,6 +176,47 @@ class _WebImportScreenState extends State<WebImportScreen> {
                 : const Icon(Icons.download_rounded),
             label: Text(_loading ? '${tr('Reading products')}… $_found' : tr('Load products')),
           ),
+          if (CloudService.instance.importSites.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              for (final h in CloudService.instance.importSites)
+                ActionChip(
+                  avatar: const Icon(Icons.verified_rounded, size: 18, color: Tw.emerald500),
+                  label: Text(h),
+                  onPressed: () {
+                    _site.text = h;
+                    _load();
+                  },
+                ),
+            ]),
+          ],
+          if (_needsApproval != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Icon(_pending ? Icons.hourglass_top_rounded : Icons.shield_outlined, color: Tw.amber500),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(tr(_pending ? 'Waiting for BizPOS to verify' : 'Website not verified yet'), style: theme.textTheme.titleMedium)),
+                    ]),
+                    const SizedBox(height: 6),
+                    Text(
+                      '$_needsApproval: ${tr('you can import only from your own website. BizPOS checks that it belongs to your shop, then turns import on. This usually takes a few hours.')}',
+                      style: muted,
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: _pending ? null : _requestApproval,
+                      icon: const Icon(Icons.send_rounded),
+                      label: Text(tr(_pending ? 'Request sent' : 'Ask BizPOS to verify my website')),
+                    ),
+                  ]),
+                ),
+              ),
+            ),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(top: 12),

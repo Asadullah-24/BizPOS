@@ -59,11 +59,16 @@ class StoreService extends ChangeNotifier {
   /// (free plan), 0 = no limit.
   int? allowanceFor(Map<String, dynamic>? shop) {
     if (shop == null) return null;
-    final override = shop['onlineLimit'] as num?;
-    if (override != null) return override.toInt();
-    if (!CloudPlan.fromShop(shop).activeAt(nowMs())) return null;
-    final fromPackage = shop['onlineProducts'] as num?;
-    return fromPackage?.toInt() ?? defaultLimit;
+    // 0 means no limit. The super admin's own limit for a shop and the paid
+    // plan's limit both count: the shop gets the larger one.
+    final override = (shop['onlineLimit'] as num?)?.toInt();
+    final plan = CloudPlan.fromShop(shop).activeAt(nowMs())
+        ? ((shop['onlineProducts'] as num?)?.toInt() ?? defaultLimit)
+        : null;
+    if (override == null) return plan;
+    if (plan == null) return override;
+    if (override == 0 || plan == 0) return 0;
+    return max(override, plan);
   }
 
   int? get myAllowance => allowanceFor(_cloud.shop);

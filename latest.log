@@ -1,0 +1,417 @@
+Resolving dependencies...
+Downloading packages...
++ _discoveryapis_commons 1.0.8
++ _flutterfire_internals 1.3.59 (1.3.79 available)
++ archive 4.0.9 (4.7.1 available)
++ args 2.7.0
++ async 2.13.1
++ barcode 2.2.9
++ bidi 2.0.13
++ boolean_selector 2.1.2
++ characters 1.4.1
++ clock 1.1.2 (1.1.3 available)
++ cloud_firestore 5.6.12 (7.1.0 available)
++ cloud_firestore_platform_interface 6.6.12 (8.1.0 available)
++ cloud_firestore_web 4.4.12 (5.8.0 available)
++ code_assets 1.2.1 (2.2.0 available)
++ collection 1.19.1
++ connectivity_plus 6.1.5 (7.3.2 available)
++ connectivity_plus_platform_interface 2.1.0
++ cross_file 0.3.5+5 (0.4.0 available)
++ crypto 3.0.8
++ cryptography 2.9.0
++ csslib 1.0.2
++ dbus 0.7.15 (0.8.0 available)
++ equatable 2.1.0 (3.0.0 available)
++ esc_pos_utils_plus 2.0.4
++ extension_google_sign_in_as_googleapis_auth 2.0.13 (3.0.0 available)
++ fake_async 1.3.3
++ ffi 2.2.0
++ file 7.0.1
++ file_picker 10.3.10 (13.3.3 available)
++ file_selector_linux 0.9.4+1
++ file_selector_macos 0.9.5+1 (0.9.5+2 available)
++ file_selector_platform_interface 2.7.0
++ file_selector_windows 0.9.3+6
++ firebase_auth 5.7.0 (7.0.1 available)
++ firebase_auth_platform_interface 7.7.3 (9.1.2 available)
++ firebase_auth_web 5.15.3 (6.3.2 available)
++ firebase_core 3.15.2 (5.1.0 available)
++ firebase_core_platform_interface 6.0.3 (8.1.1 available)
++ firebase_core_web 2.24.1 (4.1.0 available)
++ fixnum 1.1.1
++ fl_chart 0.69.2 (1.3.1 available)
++ flutter 0.0.0 from sdk flutter
++ flutter_lints 6.0.0
++ flutter_local_notifications 19.5.0 (23.0.2 available)
++ flutter_local_notifications_linux 6.0.0 (9.0.0 available)
++ flutter_local_notifications_platform_interface 9.1.0 (13.0.0 available)
++ flutter_local_notifications_windows 1.0.3 (4.0.1 available)
++ flutter_localizations 0.0.0 from sdk flutter
++ flutter_plugin_android_lifecycle 2.0.35
++ flutter_test 0.0.0 from sdk flutter
++ flutter_web_plugins 0.0.0 from sdk flutter
++ geoclue 0.1.1
++ geolocator 14.0.2 (14.1.2 available)
++ geolocator_android 5.2.1
++ geolocator_apple 2.4.3
++ geolocator_linux 0.2.4 (0.2.6 available)
++ geolocator_platform_interface 4.4.1
++ geolocator_web 4.1.4
++ geolocator_windows 0.2.5
++ glob 2.2.0
++ google_cloud 0.5.0
++ google_identity_services_web 0.3.3+1
++ google_sign_in 6.3.0 (7.2.0 available)
++ google_sign_in_android 6.2.1 (7.2.19 available)
++ google_sign_in_ios 5.9.0 (6.4.0 available)
++ google_sign_in_platform_interface 2.5.0 (3.1.0 available)
++ google_sign_in_web 0.12.4+4 (1.1.3 available)
++ googleapis 13.2.0 (19.0.0 available)
++ googleapis_auth 2.3.7
++ gsettings 0.2.8 (0.2.9 available)
++ hooks 2.0.2 (2.2.0 available)
++ html 0.15.7
++ http 1.6.0
++ http_parser 4.1.2
++ image 4.5.4 (4.13.0 available)
++ image_picker 1.2.4
++ image_picker_android 0.8.13+17 (0.8.13+25 available)
++ image_picker_for_web 3.1.1
++ image_picker_ios 0.8.13+10 (0.8.13+15 available)
++ image_picker_linux 0.2.2
++ image_picker_macos 0.2.2+1
++ image_picker_platform_interface 2.11.2
++ image_picker_windows 0.2.2
++ in_app_update 4.2.5 (5.0.0 available)
++ intl 0.20.2 (0.20.3 available)
++ jni 1.1.2
++ jni_flutter 1.0.4+1
++ jni_util 1.0.0
++ json_annotation 4.12.0
++ leak_tracker 11.0.2
++ leak_tracker_flutter_testing 3.0.10
++ leak_tracker_testing 3.0.2
++ lints 6.1.0
++ local_auth 2.3.0 (3.0.2 available)
++ local_auth_android 1.0.56 (2.3.0 available)
++ local_auth_darwin 1.6.1 (2.0.5 available)
++ local_auth_platform_interface 1.1.0
++ local_auth_windows 1.0.11 (2.0.2 available)
++ logging 1.3.0
++ matcher 0.12.19 (0.12.20 available)
++ material_color_utilities 0.13.0 (0.13.1 available)
++ meta 1.17.0 (1.19.0 available)
++ mime 2.1.0
++ mobile_scanner 7.5.0
++ native_toolchain_c 0.19.2 (0.19.6 available)
++ nested 1.0.0
++ nm 0.5.0 (0.6.0 available)
++ objective_c 9.5.0 (9.6.4 available)
++ package_config 3.0.0
++ package_info_plus 9.0.1 (10.2.2 available)
++ package_info_plus_platform_interface 3.2.1 (4.1.0 available)
++ path 1.9.1
++ path_parsing 1.1.0
++ path_provider 2.1.6
++ path_provider_android 2.3.1
++ path_provider_foundation 2.6.0
++ path_provider_linux 2.2.2
++ path_provider_platform_interface 2.1.3
++ path_provider_windows 2.3.0
++ pdf 3.12.0 (3.13.1 available)
++ pdf_widget_wrapper 1.0.4
++ permission_handler 11.4.0 (13.0.2 available)
++ permission_handler_android 12.1.0 (14.1.1 available)
++ permission_handler_apple 9.6.5
++ permission_handler_html 0.1.4+1
++ permission_handler_platform_interface 4.4.1
++ permission_handler_windows 0.2.4
++ petitparser 7.0.2 (7.1.0 available)
++ platform 3.1.6 (3.2.0 available)
++ plugin_platform_interface 2.1.8
++ posix 6.5.4
++ print_bluetooth_thermal 1.2.1 (1.2.5 available)
++ printing 5.14.3 (5.15.1 available)
++ provider 6.1.5+1
++ pub_semver 2.2.1
++ qr 3.0.3 (4.0.1 available)
++ qr_flutter 4.1.0
++ record_use 0.6.0 (1.1.1 available)
++ share_plus 12.0.2 (13.3.1 available)
++ share_plus_platform_interface 6.1.0 (7.2.0 available)
++ shared_preferences 2.5.6
++ shared_preferences_android 2.4.23 (2.5.5 available)
++ shared_preferences_foundation 2.5.7 (2.6.2 available)
++ shared_preferences_linux 2.4.1
++ shared_preferences_platform_interface 2.4.2
++ shared_preferences_web 2.4.3
++ shared_preferences_windows 2.4.1
++ sky_engine 0.0.0 from sdk flutter
++ source_span 1.10.2
++ speech_to_text 7.4.0 (7.5.0 available)
++ speech_to_text_platform_interface 2.5.0
++ speech_to_text_windows 1.0.1
++ sqflite 2.4.2+1 (2.4.6 available)
++ sqflite_android 2.4.2+3 (2.4.6 available)
++ sqflite_common 2.5.8 (2.5.17 available)
++ sqflite_common_ffi 2.4.0+3 (2.4.7 available)
++ sqflite_darwin 2.4.2 (2.4.6 available)
++ sqflite_platform_interface 2.4.0 (2.4.4 available)
++ sqlite3 3.5.2 (3.9.1 available)
++ stack_trace 1.12.1 (1.12.2 available)
++ stream_channel 2.1.4
++ string_scanner 1.4.1
++ synchronized 3.4.0+1 (3.6.1+1 available)
++ term_glyph 1.2.2
++ test_api 0.7.10 (0.7.15 available)
++ timezone 0.10.1 (0.11.2 available)
++ typed_data 1.4.0
++ url_launcher 6.3.3
++ url_launcher_android 6.3.30 (6.3.33 available)
++ url_launcher_ios 6.4.2
++ url_launcher_linux 3.2.3
++ url_launcher_macos 3.2.6
++ url_launcher_platform_interface 2.3.2
++ url_launcher_web 2.4.3
++ url_launcher_windows 3.1.6
++ uuid 4.6.0
++ vector_math 2.2.0 (2.4.4 available)
++ vm_service 15.4.0
++ web 1.1.1 (1.1.2 available)
++ win32 5.15.0 (6.4.0 available)
++ win_ble 1.1.1
++ xdg_directories 1.1.0
++ xml 6.6.1 (7.1.0 available)
++ yaml 3.1.4
+Changed 184 dependencies!
+82 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Analyzing BizPOS...                                             
+
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/app.dart:155:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/app.dart:194:38 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/app.dart:203:38 • deprecated_member_use
+   info • Angle brackets will be interpreted as HTML • lib/core/license.dart:120:38 • unintended_html_in_doc_comment
+   info • Angle brackets will be interpreted as HTML • lib/core/license.dart:120:48 • unintended_html_in_doc_comment
+   info • Unnecessary use of string interpolation • lib/services/cloud_service.dart:449:66 • unnecessary_string_interpolations
+   info • Angle brackets will be interpreted as HTML • lib/services/drive_service.dart:17:47 • unintended_html_in_doc_comment
+   info • Angle brackets will be interpreted as HTML • lib/services/drive_service.dart:18:52 • unintended_html_in_doc_comment
+   info • 'localeId' is deprecated and shouldn't be used. Use SpeechListenOptions.localeId instead • lib/services/voice_service.dart:174:7 • deprecated_member_use
+   info • 'listenFor' is deprecated and shouldn't be used. Use SpeechListenOptions.listenFor instead • lib/services/voice_service.dart:175:7 • deprecated_member_use
+   info • 'pauseFor' is deprecated and shouldn't be used. Use SpeechListenOptions.pauseFor instead • lib/services/voice_service.dart:176:7 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/brand.dart:54:63 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/brand.dart:54:81 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/brand.dart:79:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/brand.dart:131:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/brand.dart:133:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/brand.dart:135:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/brand.dart:182:71 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/brand.dart:183:68 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/brand.dart:310:58 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/charts.dart:50:80 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/common.dart:259:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/common.dart:259:61 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/common.dart:268:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/common.dart:360:107 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/common.dart:360:135 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/ui/common.dart:404:13 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/ui/screens/accounts_screen.dart:31:17 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/admin/admin_panel.dart:270:78 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/ui/screens/admin/admin_panel.dart:448:15 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/admin/admin_panel.dart:513:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/admin/admin_panel.dart:896:58 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/admin/admin_panel.dart:1086:44 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/admin/admin_panel.dart:1104:59 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/admin/admin_panel.dart:1114:63 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/admin/admin_panel.dart:1119:98 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/ui/screens/admin/company_form.dart:131:17 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/ui/screens/admin/company_form.dart:203:17 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/admin/company_form.dart:278:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/admin/company_form.dart:280:52 • deprecated_member_use
+   info • 'Share' is deprecated and shouldn't be used. Use SharePlus instead • lib/ui/screens/admin/company_form.dart:298:28 • deprecated_member_use
+   info • 'share' is deprecated and shouldn't be used. Use SharePlus.instance.share() instead • lib/ui/screens/admin/company_form.dart:298:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/admin/company_form.dart:319:31 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/admin/company_form.dart:321:50 • deprecated_member_use
+   info • 'Share' is deprecated and shouldn't be used. Use SharePlus instead • lib/ui/screens/admin/company_form.dart:354:28 • deprecated_member_use
+   info • 'share' is deprecated and shouldn't be used. Use SharePlus.instance.share() instead • lib/ui/screens/admin/company_form.dart:354:34 • deprecated_member_use
+   info • 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre • lib/ui/screens/admin/store_admin.dart:85:13 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/admin/store_admin.dart:90:73 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/admin/store_admin.dart:152:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/admin/store_admin.dart:232:46 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/admin/store_admin.dart:308:29 • deprecated_member_use
+   info • Unnecessary use of string interpolation • lib/ui/screens/admin/store_admin.dart:602:40 • unnecessary_string_interpolations
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/admin/super_admin_hub.dart:149:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/admin/super_admin_hub.dart:165:31 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/admin/super_admin_hub.dart:167:50 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/auth/auth_widgets.dart:35:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/auth/auth_widgets.dart:198:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/auth/auth_widgets.dart:224:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/auth/auth_widgets.dart:250:26 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/auth/auth_widgets.dart:252:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/auth/auth_widgets.dart:414:18 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/auth/auth_widgets.dart:416:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/auth/sign_in_screen.dart:308:68 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/auth/sign_in_screen.dart:322:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/auth/sign_in_screen.dart:372:59 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/auth/welcome_screen.dart:187:36 • deprecated_member_use
+   info • 'Share' is deprecated and shouldn't be used. Use SharePlus instead • lib/ui/screens/backup_screen.dart:34:15 • deprecated_member_use
+   info • 'shareXFiles' is deprecated and shouldn't be used. Use SharePlus.instance.share() instead • lib/ui/screens/backup_screen.dart:34:21 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/ui/screens/checkout_screen.dart:212:13 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/dashboard_screen.dart:184:44 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/dashboard_screen.dart:250:73 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/dashboard_screen.dart:291:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/dashboard_screen.dart:293:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/dashboard_screen.dart:300:72 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/dashboard_screen.dart:329:83 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/dashboard_screen.dart:336:61 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/dashboard_screen.dart:340:93 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/dashboard_screen.dart:343:74 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/dashboard_screen.dart:397:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/dashboard_screen.dart:399:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/dashboard_screen.dart:450:48 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/ui/screens/employees_screen.dart:162:13 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/ui/screens/expenses_screen.dart:129:15 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/lock_screen.dart:323:93 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/more_screen.dart:120:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/more_screen.dart:120:69 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/more_screen.dart:166:60 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/more_screen.dart:166:92 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/more_screen.dart:167:52 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/notices_screen.dart:57:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/notices_screen.dart:59:43 • deprecated_member_use
+   info • Statements in an if should be enclosed in a block • lib/ui/screens/notices_screen.dart:163:32 • curly_braces_in_flow_control_structures
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/ui/screens/onboarding_screen.dart:190:11 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/ui/screens/onboarding_screen.dart:200:11 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/onboarding_screen.dart:305:74 • deprecated_member_use
+   info • 'emptyColor' is deprecated and shouldn't be used. You should use the background color value of your container widget • lib/ui/screens/online_store_screen.dart:210:96 • deprecated_member_use
+   info • 'Share' is deprecated and shouldn't be used. Use SharePlus instead • lib/ui/screens/online_store_screen.dart:213:21 • deprecated_member_use
+   info • 'shareXFiles' is deprecated and shouldn't be used. Use SharePlus.instance.share() instead • lib/ui/screens/online_store_screen.dart:213:27 • deprecated_member_use
+   info • 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre • lib/ui/screens/online_store_screen.dart:242:13 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/online_store_screen.dart:249:57 • deprecated_member_use
+   info • 'Share' is deprecated and shouldn't be used. Use SharePlus instead • lib/ui/screens/online_store_screen.dart:270:28 • deprecated_member_use
+   info • 'share' is deprecated and shouldn't be used. Use SharePlus.instance.share() instead • lib/ui/screens/online_store_screen.dart:270:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/online_store_screen.dart:297:29 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/online_store_screen.dart:327:58 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/online_store_screen.dart:546:24 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/online_store_screen.dart:548:43 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/online_store_screen.dart:566:48 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/pos_screen.dart:375:41 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/ui/screens/product_form.dart:371:21 • deprecated_member_use
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/ui/screens/settings_screen.dart:287:11 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/ui/screens/settings_screen.dart:290:11 • deprecated_member_use
+   info • 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre • lib/ui/screens/settings_screen.dart:307:13 • deprecated_member_use
+   info • 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre • lib/ui/screens/settings_screen.dart:310:13 • deprecated_member_use
+   info • 'onPopInvoked' is deprecated and shouldn't be used. Use onPopInvokedWithResult instead. This feature was deprecated after v3.22.0-12.0.pre • lib/ui/screens/shell.dart:159:40 • deprecated_member_use
+   info • 'emptyColor' is deprecated and shouldn't be used. You should use the background color value of your container widget • lib/ui/screens/store_qr_screen.dart:29:93 • deprecated_member_use
+   info • 'Share' is deprecated and shouldn't be used. Use SharePlus instead • lib/ui/screens/store_qr_screen.dart:32:11 • deprecated_member_use
+   info • 'shareXFiles' is deprecated and shouldn't be used. Use SharePlus.instance.share() instead • lib/ui/screens/store_qr_screen.dart:32:17 • deprecated_member_use
+   info • 'onPopInvoked' is deprecated and shouldn't be used. Use onPopInvokedWithResult instead. This feature was deprecated after v3.22.0-12.0.pre • lib/ui/screens/super_admin/super_admin_console.dart:50:7 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/ui/screens/super_admin/super_admin_console.dart:247:13 • deprecated_member_use
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/ui/screens/super_admin/super_admin_console.dart:265:13 • deprecated_member_use
+   info • 'Share' is deprecated and shouldn't be used. Use SharePlus instead • lib/ui/screens/super_admin/super_admin_console.dart:369:103 • deprecated_member_use
+   info • 'share' is deprecated and shouldn't be used. Use SharePlus.instance.share() instead • lib/ui/screens/super_admin/super_admin_console.dart:369:109 • deprecated_member_use
+   info • 'Share' is deprecated and shouldn't be used. Use SharePlus instead • lib/ui/screens/super_admin/super_admin_console.dart:400:11 • deprecated_member_use
+   info • 'share' is deprecated and shouldn't be used. Use SharePlus.instance.share() instead • lib/ui/screens/super_admin/super_admin_console.dart:400:17 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/super_admin/super_admin_login.dart:66:60 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/screens/voice_stock_screen.dart:156:91 • deprecated_member_use
+   info • Statements in an if should be enclosed in a block • lib/ui/screens/web_import_screen.dart:118:22 • curly_braces_in_flow_control_structures
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/tokens.dart:73:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/ui/update_gate.dart:58:51 • deprecated_member_use
+warning • Unused import: 'package:bizpos/core/ids.dart' • test/activation_test.dart:7:8 • unused_import
+
+130 issues found. (ran in 24.2s)
+
+✅ /home/runner/work/BizPOS/BizPOS/test/widget_test.dart: sanity
+✅ /home/runner/work/BizPOS/BizPOS/test/access_test.dart: free shop has core only
+✅ /home/runner/work/BizPOS/BizPOS/test/access_test.dart: online subscription grants its features until it expires
+✅ /home/runner/work/BizPOS/BizPOS/test/access_test.dart: blocked shop loses paid features
+✅ /home/runner/work/BizPOS/BizPOS/test/access_test.dart: cached plan survives a restart
+✅ /home/runner/work/BizPOS/BizPOS/test/access_test.dart: renewing early keeps the remaining days; lifetime stays lifetime
+✅ /home/runner/work/BizPOS/BizPOS/test/access_test.dart: default packages are valid
+✅ /home/runner/work/BizPOS/BizPOS/test/access_test.dart: product limit: free 100, package limit while active, admin override always
+✅ /home/runner/work/BizPOS/BizPOS/test/cart_test.dart: subtotal and total without tax or discount
+✅ /home/runner/work/BizPOS/BizPOS/test/cart_test.dart: line discount and percent cart discount
+✅ /home/runner/work/BizPOS/BizPOS/test/cart_test.dart: exclusive tax is added on top
+✅ /home/runner/work/BizPOS/BizPOS/test/cart_test.dart: inclusive tax is extracted from the price
+✅ /home/runner/work/BizPOS/BizPOS/test/cart_test.dart: fixed cart discount never exceeds the cart value
+✅ /home/runner/work/BizPOS/BizPOS/test/cart_test.dart: adding the same product merges quantities
+✅ /home/runner/work/BizPOS/BizPOS/test/flow_test.dart: onboarding creates business, owner and PIN login
+✅ /home/runner/work/BizPOS/BizPOS/test/flow_test.dart: product with opening stock
+✅ /home/runner/work/BizPOS/BizPOS/test/flow_test.dart: cash sale reduces stock, records payment and gives change
+✅ /home/runner/work/BizPOS/BizPOS/test/flow_test.dart: refund return puts stock back and pays out
+✅ /home/runner/work/BizPOS/BizPOS/test/flow_test.dart: credit sale needs a customer and builds a balance
+✅ /home/runner/work/BizPOS/BizPOS/test/flow_test.dart: exchange: return value becomes credit for a new sale
+✅ /home/runner/work/BizPOS/BizPOS/test/flow_test.dart: cancel sale restores stock and refunds payments
+✅ /home/runner/work/BizPOS/BizPOS/test/flow_test.dart: purchase adds stock with weighted average cost and supplier balance
+✅ /home/runner/work/BizPOS/BizPOS/test/flow_test.dart: stock adjustment and low stock
+✅ /home/runner/work/BizPOS/BizPOS/test/flow_test.dart: variants are sold individually
+✅ /home/runner/work/BizPOS/BizPOS/test/flow_test.dart: expense reduces account and profit
+✅ /home/runner/work/BizPOS/BizPOS/test/profile_test.dart: switching stores keeps each store's data apart
+✅ /home/runner/work/BizPOS/BizPOS/test/flow_test.dart: backup merge is idempotent, keeps newer edits, and restores after wipe
+✅ /home/runner/work/BizPOS/BizPOS/test/activation_test.dart: fresh phone opens shop setup with no activation
+✅ /home/runner/work/BizPOS/BizPOS/test/app_smoke_test.dart: lock screen rejects a wrong PIN
+✅ /home/runner/work/BizPOS/BizPOS/test/activation_test.dart: welcome and sign-up screens render and validate
+✅ /home/runner/work/BizPOS/BizPOS/test/screenshots_test.dart: screenshots: welcome
+✅ /home/runner/work/BizPOS/BizPOS/test/screenshots_test.dart: screenshots: sign in
+✅ /home/runner/work/BizPOS/BizPOS/test/screenshots_test.dart: screenshots: sign up
+✅ /home/runner/work/BizPOS/BizPOS/test/screenshots_test.dart: screenshots: lock screen
+✅ /home/runner/work/BizPOS/BizPOS/test/screenshots_test.dart: screenshots: super admin hub and offline login
+✅ /home/runner/work/BizPOS/BizPOS/test/screenshots_test.dart: screenshots: main app tabs
+✅ /home/runner/work/BizPOS/BizPOS/test/screenshots_test.dart: screenshots: tablet welcome
+✅ /home/runner/work/BizPOS/BizPOS/test/license_test.dart: TOTP RFC 6238 SHA1 vectors
+✅ /home/runner/work/BizPOS/BizPOS/test/license_test.dart: TOTP base32 round trip and verify window
+✅ /home/runner/work/BizPOS/BizPOS/test/license_test.dart: license codes Dart key derivation matches tool/admin_key.py
+✅ /home/runner/work/BizPOS/BizPOS/test/license_test.dart: license codes a wrong password gives an untrusted key
+✅ /home/runner/work/BizPOS/BizPOS/test/license_test.dart: license codes verifies a code signed by Python
+✅ /home/runner/work/BizPOS/BizPOS/test/license_test.dart: license codes rejects tampered codes and unknown keys
+✅ /home/runner/work/BizPOS/BizPOS/test/license_test.dart: license codes round trip with all fields
+✅ /home/runner/work/BizPOS/BizPOS/test/license_test.dart: LicenseService on a device a new phone is not activated
+✅ /home/runner/work/BizPOS/BizPOS/test/license_test.dart: LicenseService on a device codes for another phone are refused
+✅ /home/runner/work/BizPOS/BizPOS/test/license_test.dart: LicenseService on a device trial, then expiry, then lifetime basic plus a paid feature
+✅ /home/runner/work/BizPOS/BizPOS/test/license_test.dart: LicenseService on a device credit codes work once and credits can be spent
+✅ /home/runner/work/BizPOS/BizPOS/test/license_test.dart: voice parser English phrases
+✅ /home/runner/work/BizPOS/BizPOS/test/license_test.dart: voice parser Roman Urdu and Urdu digits
+✅ /home/runner/work/BizPOS/BizPOS/test/license_test.dart: voice parser variants and nothing matched
+✅ /home/runner/work/BizPOS/BizPOS/test/app_smoke_test.dart: phone: every screen renders and a sale completes
+✅ /home/runner/work/BizPOS/BizPOS/test/app_smoke_test.dart: tablet: POS shows catalogue and cart side by side
+
+🎉 53 tests passed.
+keystore bytes: 2680
+keystore sha256: 6b297d97d59ced60
+store password length: 24
+alias length: 6
+Release keystore verified.
+Using release keystore from secrets.
+Running Gradle task 'assembleRelease'...                        
+Checking the license for package NDK (Side by side) 28.2.13676358 in /usr/local/lib/android/sdk/licenses
+License for package NDK (Side by side) 28.2.13676358 accepted.
+Preparing "Install NDK (Side by side) 28.2.13676358 v.28.2.13676358".
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" ready.
+Installing NDK (Side by side) 28.2.13676358 in /usr/local/lib/android/sdk/ndk/28.2.13676358
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" complete.
+"Install NDK (Side by side) 28.2.13676358 v.28.2.13676358" finished.
+Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 41112 bytes (97.5% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+Checking the license for package CMake 3.22.1 in /usr/local/lib/android/sdk/licenses
+License for package CMake 3.22.1 accepted.
+Preparing "Install CMake 3.22.1 v.3.22.1".
+"Install CMake 3.22.1 v.3.22.1" ready.
+Installing CMake 3.22.1 in /usr/local/lib/android/sdk/cmake/3.22.1
+"Install CMake 3.22.1 v.3.22.1" complete.
+"Install CMake 3.22.1 v.3.22.1" finished.
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: /home/runner/.pub-cache/hosted/pub.dev/geolocator_android-5.2.1/android/src/main/java/com/baseflow/geolocator/location/LocationMapper.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Caught exception: Already watching path: /home/runner/work/BizPOS/BizPOS/android
+Running Gradle task 'assembleRelease'...                          494.3s
+✓ Built build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk (28.2MB)
+✓ Built build/app/outputs/flutter-apk/app-arm64-v8a-release.apk (31.8MB)
+✓ Built build/app/outputs/flutter-apk/app-x86_64-release.apk (34.4MB)
+Running Gradle task 'bundleRelease'...                          
+Caught exception: Already watching path: /home/runner/work/BizPOS/BizPOS/android
+Running Gradle task 'bundleRelease'...                            100.5s
+✓ Built build/app/outputs/bundle/release/app-release.aab (61.8MB)
+-rw-r--r-- 1 runner runner 28248927 Nov 14 09:46 BizPOS-armv7.apk
+-rw-r--r-- 1 runner runner 61808982 Nov 14 09:46 BizPOS.aab
+-rw-r--r-- 1 runner runner 31805677 Nov 14 09:46 BizPOS.apk
